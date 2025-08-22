@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Calendar, Waves, Fish, Anchor, TrendingUp, DollarSign } from "lucide-react";
+import { Users, MapPin, Calendar, Waves, Fish, Anchor, TrendingUp, DollarSign, Ship } from "lucide-react";
+import { TourOperatorsView } from "./TourOperatorsView";
 
 const initialMockData = {
   totalClientes: 45,
@@ -33,6 +34,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
   const [mockData, setMockData] = useState(initialMockData);
   const [ventasTotal, setVentasTotal] = useState(9400);
   const [nuevaVenta, setNuevaVenta] = useState<any>(null);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'operators'>('dashboard');
 
   // Simulador de ventas en tiempo real
   useEffect(() => {
@@ -68,6 +70,11 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  if (currentView === 'operators') {
+    return <TourOperatorsView onBack={() => setCurrentView('dashboard')} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-surface">
       {/* Header */}
@@ -301,9 +308,19 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                 </div>
               ))}
               
-              <Button variant="ocean" className="w-full mt-4">
-                Ver Todas las Reservas
-              </Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <Button variant="ocean" className="w-full">
+                  Ver Todas las Reservas
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => setCurrentView('operators')}
+                >
+                  <Ship className="h-4 w-4 mr-2" />
+                  Ver Operadores
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
