@@ -7,11 +7,11 @@ import { TourOperatorsView } from "./TourOperatorsView";
 const initialMockData = {
   totalClientes: 45,
   tourOperadores: [
-    { id: 1, nombre: "Coral Adventures", clientes: 12, porcentaje: 27, ventas: 2400 },
-    { id: 2, nombre: "Deep Blue Tours", clientes: 8, porcentaje: 18, ventas: 1800 },
-    { id: 3, nombre: "Ocean Explorer", clientes: 15, porcentaje: 33, ventas: 3200 },
-    { id: 4, nombre: "Reef Discoveries", clientes: 6, porcentaje: 13, ventas: 1200 },
-    { id: 5, nombre: "Marine Paradise", clientes: 4, porcentaje: 9, ventas: 800 }
+    { id: 1, nombre: "Coral Adventures", clientes: 12, porcentaje: 27 },
+    { id: 2, nombre: "Deep Blue Tours", clientes: 8, porcentaje: 18 },
+    { id: 3, nombre: "Ocean Explorer", clientes: 15, porcentaje: 33 },
+    { id: 4, nombre: "Reef Discoveries", clientes: 6, porcentaje: 13 },
+    { id: 5, nombre: "Marine Paradise", clientes: 4, porcentaje: 9 }
   ],
   reservasHoy: 18,
   proximasSalidas: [
@@ -19,10 +19,10 @@ const initialMockData = {
     { hora: "11:30", operador: "Ocean Explorer", clientes: 8 },
     { hora: "14:00", operador: "Deep Blue Tours", clientes: 4 }
   ],
-  ventasRealTime: [
-    { id: 1, operador: "Ocean Explorer", monto: 450, timestamp: new Date(), tipo: "Reserva Completa" },
-    { id: 2, operador: "Coral Adventures", monto: 200, timestamp: new Date(Date.now() - 30000), tipo: "Depósito" },
-    { id: 3, operador: "Deep Blue Tours", monto: 380, timestamp: new Date(Date.now() - 60000), tipo: "Reserva Completa" }
+  reservasRealTime: [
+    { id: 1, operador: "Ocean Explorer", personas: 4, timestamp: new Date(), tipo: "Familia" },
+    { id: 2, operador: "Coral Adventures", personas: 2, timestamp: new Date(Date.now() - 30000), tipo: "Pareja" },
+    { id: 3, operador: "Deep Blue Tours", personas: 6, timestamp: new Date(Date.now() - 60000), tipo: "Grupo" }
   ]
 };
 
@@ -32,40 +32,41 @@ interface DashboardProps {
 
 export const Dashboard = ({ onLogout }: DashboardProps) => {
   const [mockData, setMockData] = useState(initialMockData);
-  const [ventasTotal, setVentasTotal] = useState(9400);
-  const [nuevaVenta, setNuevaVenta] = useState<any>(null);
+  const [clientesTotal, setClientesTotal] = useState(45);
+  const [nuevaReserva, setNuevaReserva] = useState<any>(null);
   const [currentView, setCurrentView] = useState<'dashboard' | 'operators'>('dashboard');
 
-  // Simulador de ventas en tiempo real
+  // Simulador de reservas en tiempo real
   useEffect(() => {
     const interval = setInterval(() => {
       const operadores = ["Ocean Explorer", "Coral Adventures", "Deep Blue Tours", "Reef Discoveries", "Marine Paradise"];
-      const tipos = ["Reserva Completa", "Depósito", "Pago Final"];
-      const montos = [200, 250, 300, 380, 450, 500, 600];
+      const tipos = ["Familia", "Pareja", "Grupo", "Individual"];
+      const personas = [1, 2, 3, 4, 5, 6];
       
-      const nuevaVentaData = {
+      const nuevaReservaData = {
         id: Date.now(),
         operador: operadores[Math.floor(Math.random() * operadores.length)],
-        monto: montos[Math.floor(Math.random() * montos.length)],
+        personas: personas[Math.floor(Math.random() * personas.length)],
         timestamp: new Date(),
         tipo: tipos[Math.floor(Math.random() * tipos.length)]
       };
 
-      setNuevaVenta(nuevaVentaData);
-      setVentasTotal(prev => prev + nuevaVentaData.monto);
+      setNuevaReserva(nuevaReservaData);
+      setClientesTotal(prev => prev + nuevaReservaData.personas);
       
       setMockData(prev => ({
         ...prev,
-        ventasRealTime: [nuevaVentaData, ...prev.ventasRealTime.slice(0, 4)],
+        totalClientes: prev.totalClientes + nuevaReservaData.personas,
+        reservasRealTime: [nuevaReservaData, ...prev.reservasRealTime.slice(0, 4)],
         tourOperadores: prev.tourOperadores.map(op => 
-          op.nombre === nuevaVentaData.operador 
-            ? { ...op, ventas: op.ventas + nuevaVentaData.monto }
+          op.nombre === nuevaReservaData.operador 
+            ? { ...op, clientes: op.clientes + nuevaReservaData.personas }
             : op
         )
       }));
 
       // Resetear la animación después de 3 segundos
-      setTimeout(() => setNuevaVenta(null), 3000);
+      setTimeout(() => setNuevaReserva(null), 3000);
     }, 5000);
 
     return () => clearInterval(interval);
@@ -101,13 +102,13 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
           <Card className="shadow-ocean hover:shadow-depth transition-shadow duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Ventas del Día
+                Clientes del Día
               </CardTitle>
-              <DollarSign className="h-5 w-5 text-secondary" />
+              <Users className="h-5 w-5 text-secondary" />
             </CardHeader>
             <CardContent>
-              <div className={`text-3xl font-bold text-secondary transition-all duration-500 ${nuevaVenta ? 'animate-pulse' : ''}`}>
-                ${ventasTotal.toLocaleString()}
+              <div className={`text-3xl font-bold text-secondary transition-all duration-500 ${nuevaReserva ? 'animate-pulse' : ''}`}>
+                {clientesTotal}
               </div>
               <p className="text-sm text-muted-foreground">
                 Total acumulado
@@ -160,13 +161,13 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
           </Card>
         </div>
 
-        {/* Ventas en Tiempo Real */}
+        {/* Distribución en Tiempo Real */}
         <div className="mb-8">
           <Card className="shadow-depth">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-secondary" />
-                <span>Distribución de Ventas en Tiempo Real</span>
+                <Users className="h-5 w-5 text-secondary" />
+                <span>Distribución de Clientes en Tiempo Real</span>
                 <div className="ml-auto flex items-center space-x-2">
                   <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
                   <span className="text-sm text-muted-foreground">En vivo</span>
@@ -174,31 +175,31 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Ventas por Operador */}
+              {/* Clientes por Operador */}
               <div className="space-y-4 mb-6">
-                <h4 className="font-semibold text-foreground mb-3">Ventas por Tour Operador</h4>
+                <h4 className="font-semibold text-foreground mb-3">Distribución por Tour Operador</h4>
                 {mockData.tourOperadores.map((operador) => (
                   <div key={operador.id} className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-foreground">{operador.nombre}</span>
                       <div className="flex items-center space-x-4">
-                        <span className="text-sm text-muted-foreground">{operador.clientes} clientes</span>
+                        <span className="text-sm text-muted-foreground">{operador.porcentaje}%</span>
                         <span className={`text-lg font-bold transition-all duration-500 ${
-                          nuevaVenta?.operador === operador.nombre ? 'text-secondary animate-pulse' : 'text-primary'
+                          nuevaReserva?.operador === operador.nombre ? 'text-secondary animate-pulse' : 'text-primary'
                         }`}>
-                          ${operador.ventas.toLocaleString()}
+                          {operador.clientes} personas
                         </span>
                       </div>
                     </div>
                     <div className="w-full bg-muted rounded-full h-3">
                       <div 
                         className={`h-3 rounded-full transition-all duration-1000 ${
-                          nuevaVenta?.operador === operador.nombre 
+                          nuevaReserva?.operador === operador.nombre 
                             ? 'bg-gradient-coral animate-pulse' 
                             : 'bg-gradient-ocean'
                         }`}
                         style={{ 
-                          width: `${Math.min((operador.ventas / Math.max(...mockData.tourOperadores.map(op => op.ventas))) * 100, 100)}%`
+                          width: `${Math.min((operador.clientes / Math.max(...mockData.tourOperadores.map(op => op.clientes))) * 100, 100)}%`
                         }}
                       ></div>
                     </div>
@@ -206,41 +207,41 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                 ))}
               </div>
 
-              {/* Historial de Ventas Recientes */}
+              {/* Historial de Reservas Recientes */}
               <div className="border-t border-border pt-4">
-                <h4 className="font-semibold text-foreground mb-3">Últimas Transacciones</h4>
+                <h4 className="font-semibold text-foreground mb-3">Últimas Reservas</h4>
                 <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {mockData.ventasRealTime.map((venta, index) => (
+                  {mockData.reservasRealTime.map((reserva, index) => (
                     <div 
-                      key={venta.id} 
+                      key={reserva.id} 
                       className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 ${
-                        index === 0 && nuevaVenta ? 'bg-gradient-coral/10 border-secondary animate-fade-in scale-105' : 'bg-gradient-surface border-border'
+                        index === 0 && nuevaReserva ? 'bg-gradient-coral/10 border-secondary animate-fade-in scale-105' : 'bg-gradient-surface border-border'
                       }`}
                     >
                       <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-full transition-all duration-300 ${
-                          index === 0 && nuevaVenta ? 'bg-gradient-coral' : 'bg-gradient-ocean'
+                          index === 0 && nuevaReserva ? 'bg-gradient-coral' : 'bg-gradient-ocean'
                         }`}>
-                          <DollarSign className="h-4 w-4 text-primary-foreground" />
+                          <Users className="h-4 w-4 text-primary-foreground" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">{venta.operador}</p>
+                          <p className="font-medium text-foreground">{reserva.operador}</p>
                           <div className="flex items-center space-x-2">
-                            <p className="text-sm text-muted-foreground">{venta.tipo}</p>
+                            <p className="text-sm text-muted-foreground">{reserva.tipo}</p>
                             <span className="text-xs text-muted-foreground">
-                              {venta.timestamp.toLocaleTimeString()}
+                              {reserva.timestamp.toLocaleTimeString()}
                             </span>
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className={`font-bold transition-all duration-300 ${
-                          index === 0 && nuevaVenta ? 'text-secondary text-lg' : 'text-primary'
+                          index === 0 && nuevaReserva ? 'text-secondary text-lg' : 'text-primary'
                         }`}>
-                          ${venta.monto}
+                          {reserva.personas} personas
                         </p>
-                        {index === 0 && nuevaVenta && (
-                          <p className="text-xs text-secondary animate-pulse">¡Nueva venta!</p>
+                        {index === 0 && nuevaReserva && (
+                          <p className="text-xs text-secondary animate-pulse">¡Nueva reserva!</p>
                         )}
                       </div>
                     </div>
