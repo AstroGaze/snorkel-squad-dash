@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Anchor, Users, Ship, MapPin, Clock, Phone, Mail } from "lucide-react";
+import { Anchor, Users, Ship, MapPin, Clock, Phone, Mail, Plus } from "lucide-react";
+import { AddTourOperatorForm } from "./AddTourOperatorForm";
 
-const tourOperatorsData = [
+const initialTourOperatorsData = [
   {
     id: 1,
     nombre: "Coral Adventures",
@@ -115,6 +117,29 @@ interface TourOperatorsViewProps {
 }
 
 export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
+  const [tourOperatorsData, setTourOperatorsData] = useState(initialTourOperatorsData);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const handleAddOperator = (newOperator: any) => {
+    const operatorWithId = {
+      ...newOperator,
+      id: Math.max(...tourOperatorsData.map(op => op.id)) + 1,
+      clientesHoy: 0,
+      capacidadTotal: newOperator.botes.reduce((acc: number, boat: any) => acc + boat.capacidad, 0)
+    };
+    setTourOperatorsData(prev => [...prev, operatorWithId]);
+    setShowAddForm(false);
+  };
+
+  if (showAddForm) {
+    return (
+      <AddTourOperatorForm
+        onAdd={handleAddOperator}
+        onCancel={() => setShowAddForm(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-surface">
       {/* Header */}
@@ -130,6 +155,10 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
               </div>
               <h1 className="text-xl font-bold text-foreground">Tour Operadores</h1>
             </div>
+            <Button variant="ocean" onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Operador
+            </Button>
           </div>
         </div>
       </header>
