@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Calendar, Waves, Fish, Anchor, TrendingUp, DollarSign, Ship, BarChart3 } from "lucide-react";
+import { Users, MapPin, Calendar, Waves, Fish, Anchor, TrendingUp, DollarSign, Ship, BarChart3, Clock } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { TourOperatorsView } from "./TourOperatorsView";
 
@@ -210,45 +210,110 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                 ))}
               </div>
 
-              {/* Historial de Reservas Recientes */}
-              <div className="border-t border-border pt-4">
-                <h4 className="font-semibold text-foreground mb-3">Últimas Reservas</h4>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
+              {/* Historial de Reservas Recientes - Redesigned */}
+              <div className="border-t border-border pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-semibold text-foreground flex items-center">
+                    <div className="p-2 rounded-lg bg-gradient-ocean mr-3">
+                      <Calendar className="h-4 w-4 text-primary-foreground" />
+                    </div>
+                    Últimas Reservas
+                  </h4>
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+                    <span>Actualizando en vivo</span>
+                  </div>
+                </div>
+                
+                <div className="grid gap-3">
                   {mockData.reservasRealTime.map((reserva, index) => (
                     <div 
                       key={reserva.id} 
-                      className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-500 ${
-                        index === 0 && nuevaReserva ? 'bg-gradient-coral/10 border-secondary animate-fade-in scale-105' : 'bg-gradient-surface border-border'
+                      className={`group relative overflow-hidden rounded-xl border transition-all duration-500 hover:shadow-ocean ${
+                        index === 0 && nuevaReserva 
+                          ? 'bg-gradient-to-r from-secondary/10 to-primary/5 border-secondary shadow-lg animate-scale-in' 
+                          : 'bg-card border-border hover:border-primary/20'
                       }`}
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-full transition-all duration-300 ${
-                          index === 0 && nuevaReserva ? 'bg-gradient-coral' : 'bg-gradient-ocean'
-                        }`}>
-                          <Users className="h-4 w-4 text-primary-foreground" />
+                      {/* Nueva reserva indicator */}
+                      {index === 0 && nuevaReserva && (
+                        <div className="absolute top-0 right-0 bg-gradient-coral text-secondary-foreground text-xs px-2 py-1 rounded-bl-lg animate-fade-in">
+                          ¡Nueva!
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">{reserva.operador}</p>
-                          <div className="flex items-center space-x-2">
-                            <p className="text-sm text-muted-foreground">{reserva.tipo}</p>
-                            <span className="text-xs text-muted-foreground">
-                              {reserva.timestamp.toLocaleTimeString()}
-                            </span>
+                      )}
+                      
+                      <div className="p-4">
+                        <div className="flex items-center justify-between">
+                          {/* Left side - Operator info */}
+                          <div className="flex items-center space-x-4">
+                            <div className={`relative p-3 rounded-xl transition-all duration-300 ${
+                              index === 0 && nuevaReserva 
+                                ? 'bg-gradient-coral shadow-lg' 
+                                : 'bg-gradient-surface border border-border group-hover:bg-gradient-ocean'
+                            }`}>
+                              <Ship className={`h-5 w-5 transition-colors duration-300 ${
+                                index === 0 && nuevaReserva 
+                                  ? 'text-secondary-foreground' 
+                                  : 'text-primary group-hover:text-primary-foreground'
+                              }`} />
+                              
+                              {/* Pulsing ring for new reservations */}
+                              {index === 0 && nuevaReserva && (
+                                <div className="absolute inset-0 rounded-xl border-2 border-secondary animate-ping"></div>
+                              )}
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <p className={`font-semibold transition-colors duration-300 ${
+                                index === 0 && nuevaReserva ? 'text-secondary' : 'text-foreground'
+                              }`}>
+                                {reserva.operador}
+                              </p>
+                              <div className="flex items-center space-x-3">
+                                <span className="inline-flex items-center px-2 py-1 rounded-md bg-gradient-surface text-xs font-medium text-muted-foreground border border-border">
+                                  {reserva.tipo}
+                                </span>
+                                <span className="text-xs text-muted-foreground flex items-center">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  {reserva.timestamp.toLocaleTimeString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Right side - People count */}
+                          <div className="text-right">
+                            <div className={`inline-flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-300 ${
+                              index === 0 && nuevaReserva 
+                                ? 'bg-gradient-coral text-secondary-foreground shadow-lg' 
+                                : 'bg-gradient-surface border border-border'
+                            }`}>
+                              <Users className="h-4 w-4" />
+                              <span className={`font-bold transition-all duration-300 ${
+                                index === 0 && nuevaReserva ? 'text-lg' : 'text-base'
+                              }`}>
+                                {reserva.personas}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">personas</p>
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`font-bold transition-all duration-300 ${
-                          index === 0 && nuevaReserva ? 'text-secondary text-lg' : 'text-primary'
-                        }`}>
-                          {reserva.personas} personas
-                        </p>
-                        {index === 0 && nuevaReserva && (
-                          <p className="text-xs text-secondary animate-pulse">¡Nueva reserva!</p>
-                        )}
-                      </div>
+                      
+                      {/* Animated bottom border for new reservations */}
+                      {index === 0 && nuevaReserva && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary via-primary to-secondary animate-pulse"></div>
+                      )}
                     </div>
                   ))}
+                </div>
+                
+                {/* View all button */}
+                <div className="mt-4 text-center">
+                  <Button variant="ghost" className="text-primary hover:text-primary-foreground hover:bg-gradient-ocean">
+                    Ver todas las reservas
+                    <TrendingUp className="h-4 w-4 ml-2" />
+                  </Button>
                 </div>
               </div>
             </CardContent>
