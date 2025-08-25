@@ -2,16 +2,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Waves, Fish } from "lucide-react";
+import { Waves, Fish, User, Lock } from "lucide-react";
 import snorkelHero from "@/assets/snorkel-hero.jpg";
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (userType: 'admin' | 'seller') => void;
 }
 
 export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [userType, setUserType] = useState<'admin' | 'seller'>('seller');
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -52,6 +53,31 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
           </CardHeader>
           
           <CardContent className="space-y-6">
+            {/* User Type Selection */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Tipo de Usuario</label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant={userType === 'seller' ? 'ocean' : 'outline'}
+                  onClick={() => setUserType('seller')}
+                  className="w-full"
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Vendedor
+                </Button>
+                <Button
+                  type="button"
+                  variant={userType === 'admin' ? 'ocean' : 'outline'}
+                  onClick={() => setUserType('admin')}
+                  className="w-full"
+                >
+                  <Lock className="h-4 w-4 mr-2" />
+                  Administrador
+                </Button>
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-foreground">
@@ -86,9 +112,9 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
               variant="ocean" 
               size="lg" 
               className="w-full h-12 text-base font-semibold"
-              onClick={onLogin}
+              onClick={() => onLogin(userType)}
             >
-              Iniciar Sesión
+              Iniciar Sesión como {userType === 'admin' ? 'Administrador' : 'Vendedor'}
             </Button>
             
             <div className="text-center">
