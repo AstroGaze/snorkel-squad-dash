@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, MapPin, Calendar, Waves, Fish, Anchor, TrendingUp, DollarSign, Ship } from "lucide-react";
+import { Users, MapPin, Calendar, Waves, Fish, Anchor, TrendingUp, DollarSign, Ship, BarChart3 } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { TourOperatorsView } from "./TourOperatorsView";
 
 const initialMockData = {
@@ -25,6 +26,8 @@ const initialMockData = {
     { id: 3, operador: "Deep Blue Tours", personas: 6, timestamp: new Date(Date.now() - 60000), tipo: "Grupo" }
   ]
 };
+
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', 'hsl(var(--border))'];
 
 interface DashboardProps {
   onLogout: () => void;
@@ -248,6 +251,77 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                   ))}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Pie Chart */}
+          <Card className="shadow-depth">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <span>Distribución de Clientes (Gráfico)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={mockData.tourOperadores}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ nombre, porcentaje }) => `${nombre}: ${porcentaje}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="clientes"
+                  >
+                    {mockData.tourOperadores.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${value} personas`, 'Clientes']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Bar Chart */}
+          <Card className="shadow-depth">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-secondary" />
+                <span>Comparativo por Operador</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={mockData.tourOperadores}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="nombre" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    interval={0}
+                    fontSize={12}
+                    stroke="hsl(var(--muted-foreground))"
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    formatter={(value) => [`${value} personas`, 'Clientes']}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="clientes" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
