@@ -29,22 +29,37 @@ interface TourOperator {
 }
 
 interface AddTourOperatorFormProps {
-  onAdd: (operator: TourOperator) => void;
+  onAdd?: (operator: TourOperator) => void;
+  onEdit?: (operator: TourOperator) => void;
   onCancel: () => void;
+  editData?: TourOperator & { id: number };
+  isEdit?: boolean;
 }
 
-export const AddTourOperatorForm = ({ onAdd, onCancel }: AddTourOperatorFormProps) => {
-  const [formData, setFormData] = useState<TourOperator>({
-    nombre: "",
-    contacto: {
-      telefono: "",
-      email: "",
-      direccion: ""
-    },
-    botes: [],
-    personal: 1,
-    horarios: [],
-    especialidad: ""
+export const AddTourOperatorForm = ({ onAdd, onEdit, onCancel, editData, isEdit = false }: AddTourOperatorFormProps) => {
+  const [formData, setFormData] = useState<TourOperator>(() => {
+    if (isEdit && editData) {
+      return {
+        nombre: editData.nombre,
+        contacto: editData.contacto,
+        botes: editData.botes,
+        personal: editData.personal,
+        horarios: editData.horarios,
+        especialidad: editData.especialidad
+      };
+    }
+    return {
+      nombre: "",
+      contacto: {
+        telefono: "",
+        email: "",
+        direccion: ""
+      },
+      botes: [],
+      personal: 1,
+      horarios: [],
+      especialidad: ""
+    };
   });
 
   const [newBoat, setNewBoat] = useState<Boat>({
@@ -59,7 +74,11 @@ export const AddTourOperatorForm = ({ onAdd, onCancel }: AddTourOperatorFormProp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.nombre && formData.contacto.telefono && formData.botes.length > 0) {
-      onAdd(formData);
+      if (isEdit && onEdit) {
+        onEdit(formData);
+      } else if (onAdd) {
+        onAdd(formData);
+      }
     }
   };
 
@@ -107,7 +126,9 @@ export const AddTourOperatorForm = ({ onAdd, onCancel }: AddTourOperatorFormProp
       <header className="bg-card shadow-ocean border-b border-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-bold text-foreground">Nuevo Tour Operador</h1>
+            <h1 className="text-xl font-bold text-foreground">
+              {isEdit ? "Editar Tour Operador" : "Nuevo Tour Operador"}
+            </h1>
             <Button variant="ghost" onClick={onCancel}>
               <X className="h-4 w-4" />
             </Button>
@@ -312,7 +333,7 @@ export const AddTourOperatorForm = ({ onAdd, onCancel }: AddTourOperatorFormProp
               Cancelar
             </Button>
             <Button type="submit" variant="ocean">
-              Crear Tour Operador
+              {isEdit ? "Guardar Cambios" : "Crear Tour Operador"}
             </Button>
           </div>
         </form>

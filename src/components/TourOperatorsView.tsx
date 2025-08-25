@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Anchor, Users, Ship, MapPin, Clock, Phone, Mail, Plus } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Anchor, Users, Ship, MapPin, Clock, Phone, Mail, Plus, Edit, Trash2 } from "lucide-react";
 import { AddTourOperatorForm } from "./AddTourOperatorForm";
 
 const initialTourOperatorsData = [
@@ -119,6 +120,7 @@ interface TourOperatorsViewProps {
 export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
   const [tourOperatorsData, setTourOperatorsData] = useState(initialTourOperatorsData);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingOperator, setEditingOperator] = useState<typeof initialTourOperatorsData[0] | null>(null);
 
   const handleAddOperator = (newOperator: any) => {
     const operatorWithId = {
@@ -131,11 +133,40 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
     setShowAddForm(false);
   };
 
+  const handleEditOperator = (updatedOperator: any) => {
+    setTourOperatorsData(prev => prev.map(op => 
+      op.id === editingOperator?.id 
+        ? {
+            ...updatedOperator,
+            id: op.id,
+            clientesHoy: op.clientesHoy,
+            capacidadTotal: updatedOperator.botes.reduce((acc: number, boat: any) => acc + boat.capacidad, 0)
+          }
+        : op
+    ));
+    setEditingOperator(null);
+  };
+
+  const handleDeleteOperator = (id: number) => {
+    setTourOperatorsData(prev => prev.filter(op => op.id !== id));
+  };
+
   if (showAddForm) {
     return (
       <AddTourOperatorForm
         onAdd={handleAddOperator}
         onCancel={() => setShowAddForm(false)}
+      />
+    );
+  }
+
+  if (editingOperator) {
+    return (
+      <AddTourOperatorForm
+        isEdit={true}
+        editData={editingOperator}
+        onEdit={handleEditOperator}
+        onCancel={() => setEditingOperator(null)}
       />
     );
   }
@@ -216,13 +247,46 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
             <Card key={operador.id} className="shadow-depth">
               <CardHeader className="pb-4">
                 <div className="flex justify-between items-start">
-                  <div>
+                  <div className="flex-1">
                     <CardTitle className="text-xl text-foreground mb-2">{operador.nombre}</CardTitle>
                     <p className="text-muted-foreground">{operador.especialidad}</p>
                   </div>
-                  <Badge variant="secondary" className="text-sm">
-                    {operador.clientesHoy} clientes hoy
-                  </Badge>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="secondary" className="text-sm">
+                      {operador.clientesHoy} clientes hoy
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingOperator(operador)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar Tour Operador?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Se eliminará permanentemente el operador "{operador.nombre}" y todas sus embarcaciones.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => handleDeleteOperator(operador.id)}
+                            className="bg-destructive hover:bg-destructive/90"
+                          >
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </CardHeader>
               
