@@ -45,7 +45,7 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
               </div>
             </div>
             <CardTitle className="text-3xl font-bold bg-gradient-ocean bg-clip-text text-transparent">
-              AquaReservas
+              EquiTour
             </CardTitle>
             <CardDescription className="text-base">
               Sistema de Reservaciones de Snorkel
