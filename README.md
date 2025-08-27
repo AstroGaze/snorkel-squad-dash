@@ -71,3 +71,80 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+# AquaReservas - Snorkel Tour Reservation System
+
+A modern, real-time reservation management system for snorkel tour operators with an ocean-inspired design and comprehensive analytics dashboard.
+
+## 🌊 Project Overview
+
+AquaReservas is a web-based reservation management system designed specifically for snorkel and marine tour operators. The system provides real-time booking tracking, operator management, and sales capabilities with a beautiful ocean-themed interface.
+
+## ✨ Features
+
+### 🔐 Authentication System
+- **Dual User Roles**: Admin and Seller access levels
+- **Role-based Interface**: Different dashboards for different user types
+- **Secure Login**: Email/password authentication with user type selection
+
+### 📊 Admin Dashboard
+- **Real-time Analytics**: Live booking updates and customer distribution
+- **Interactive Charts**: Pie charts and bar graphs using Recharts
+- **Booking Visualization**: Real-time reservation feed with animations
+- **Tour Operator Management**: Complete CRUD operations for operators
+- **Capacity Tracking**: Monitor boat capacity and utilization rates
+- **Schedule Overview**: View upcoming departures and time slots
+
+### 💼 Sales Interface
+- **Quick Reservations**: Streamlined booking creation process
+- **Smart Recommendations**: System suggests optimal tour operators
+- **Capacity Monitoring**: Real-time availability checking
+- **Load Balancing**: Automatic distribution suggestions based on current bookings
+
+### 🚢 Tour Operator Management
+- **Complete Profiles**: Operator information, contact details, and specialties
+- **Fleet Management**: Boat inventory with capacity and status tracking
+- **Schedule Management**: Operating hours and departure times
+- **Performance Metrics**: Booking statistics and capacity utilization
+
+## 🛠️ Technology Stack
+
+### Frontend Framework
+- **React 18** - Modern React with hooks and functional components
+- **TypeScript** - Type-safe JavaScript for better development experience
+- **Vite** - Fast build tool and development server
+
+### UI & Styling
+- **Tailwind CSS** - Utility-first CSS framework
+- **shadcn/ui** - High-quality React component library
+- **Custom Design System** - Ocean-themed color palette and gradients
+- **Responsive Design** - Mobile-first approach with adaptive layouts
+
+### Data Visualization
+- **Recharts** - Composable charting library for React
+- **Interactive Charts** - Pie charts, bar graphs, and progress indicators
+- **Real-time Updates** - Live data visualization with smooth animations
+
+### Routing & Navigation
+- **React Router DOM** - Client-side routing and navigation
+- **Protected Routes** - Role-based access control
+
+### Development Tools
+- **ESLint** - Code linting and quality assurance
+- **TypeScript** - Static type checking
+- **Vite** - Hot module replacement and fast builds
+
+## 🎨 Design System
+
+### Color Palette
+```css
+/* Primary Ocean Blues */
+--primary: 200 85% 35%        /* Deep ocean blue */
+--primary-glow: 200 85% 45%   /* Glowing ocean blue */
+
+/* Coral Accents */
+--secondary: 15 75% 65%       /* Warm coral */
+
+/* Aqua Tones */
+--accent: 180 60% 88%         /* Soft aqua */
+--muted: 180 25% 95%          /* Light aqua mist */
