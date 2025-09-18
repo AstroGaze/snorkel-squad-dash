@@ -1,31 +1,23 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Users, MapPin, Calendar, Waves, Fish, Anchor, TrendingUp, DollarSign, Ship, BarChart3, Clock } from "lucide-react";
+import { useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Users,
+  MapPin,
+  Calendar,
+  Waves,
+  Fish,
+  Anchor,
+  TrendingUp,
+  DollarSign,
+  Ship,
+  BarChart3,
+  Clock
+} from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { TourOperatorsView } from "./TourOperatorsView";
-
-const initialMockData = {
-  totalClientes: 45,
-  tourOperadores: [
-    { id: 1, nombre: "Coral Adventures", clientes: 12, porcentaje: 27 },
-    { id: 2, nombre: "Deep Blue Tours", clientes: 8, porcentaje: 18 },
-    { id: 3, nombre: "Ocean Explorer", clientes: 15, porcentaje: 33 },
-    { id: 4, nombre: "Reef Discoveries", clientes: 6, porcentaje: 13 },
-    { id: 5, nombre: "Marine Paradise", clientes: 4, porcentaje: 9 }
-  ],
-  reservasHoy: 18,
-  proximasSalidas: [
-    { hora: "09:00", operador: "Coral Adventures", clientes: 6 },
-    { hora: "11:30", operador: "Ocean Explorer", clientes: 8 },
-    { hora: "14:00", operador: "Deep Blue Tours", clientes: 4 }
-  ],
-  reservasRealTime: [
-    { id: 1, operador: "Ocean Explorer", personas: 4, timestamp: new Date(), tipo: "Familia" },
-    { id: 2, operador: "Coral Adventures", personas: 2, timestamp: new Date(Date.now() - 30000), tipo: "Pareja" },
-    { id: 3, operador: "Deep Blue Tours", personas: 6, timestamp: new Date(Date.now() - 60000), tipo: "Grupo" }
-  ]
-};
+import { TourOperatorsView } from './TourOperatorsView';
+import { useOperatorsBundle } from '@/hooks/useOperatorsData';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', 'hsl(var(--border))'];
 
@@ -33,47 +25,76 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
+interface UpcomingDeparture {
+  hora: string;
+  operador: string;
+  clientes: number;
+}
+
+interface RealTimeReservation {
+  id: number;
+  operador: string;
+  personas: number;
+  timestamp: Date;
+  tipo: string;
+}
+
 export const Dashboard = ({ onLogout }: DashboardProps) => {
-  const [mockData, setMockData] = useState(initialMockData);
-  const [clientesTotal, setClientesTotal] = useState(45);
-  const [nuevaReserva, setNuevaReserva] = useState<any>(null);
   const [currentView, setCurrentView] = useState<'dashboard' | 'operators'>('dashboard');
+  const { data, isLoading, isError, error } = useOperatorsBundle();
 
-  // Simulador de reservas en tiempo real
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const operadores = ["Ocean Explorer", "Coral Adventures", "Deep Blue Tours", "Reef Discoveries", "Marine Paradise"];
-      const tipos = ["Familia", "Pareja", "Grupo", "Individual"];
-      const personas = [1, 2, 3, 4, 5, 6];
-      
-      const nuevaReservaData = {
-        id: Date.now(),
-        operador: operadores[Math.floor(Math.random() * operadores.length)],
-        personas: personas[Math.floor(Math.random() * personas.length)],
-        timestamp: new Date(),
-        tipo: tipos[Math.floor(Math.random() * tipos.length)]
+  const operators = useMemo(() => data?.operators ?? [], [data?.operators]);
+  const reservations = useMemo(() => data?.reservationsToday ?? [], [data?.reservationsToday]);
+
+  const totalClientes = useMemo(() => operators.reduce((acc, operator) => acc + operator.clientesHoy, 0), [operators]);
+  const reservasHoy = reservations.length;
+
+  const distribution = useMemo(() => {
+    return operators.map((operator) => {
+      const porcentaje = totalClientes > 0 ? Math.round((operator.clientesHoy / totalClientes) * 100) : 0;
+      return {
+        id: operator.id,
+        nombre: operator.nombre,
+        clientes: operator.clientesHoy,
+        porcentaje,
+        capacidadTotal: operator.capacidadTotal,
+        personal: operator.personal
       };
+    });
+  }, [operators, totalClientes]);
 
-      setNuevaReserva(nuevaReservaData);
-      setClientesTotal(prev => prev + nuevaReservaData.personas);
-      
-      setMockData(prev => ({
-        ...prev,
-        totalClientes: prev.totalClientes + nuevaReservaData.personas,
-        reservasRealTime: [nuevaReservaData, ...prev.reservasRealTime.slice(0, 4)],
-        tourOperadores: prev.tourOperadores.map(op => 
-          op.nombre === nuevaReservaData.operador 
-            ? { ...op, clientes: op.clientes + nuevaReservaData.personas }
-            : op
-        )
-      }));
+  const upcomingDepartures: UpcomingDeparture[] = useMemo(() => {
+    return reservations
+      .map((reservation) => ({
+        hora: reservation.horaSalida ?? '',
+        operador: reservation.operadorNombre,
+        clientes: reservation.personas
+      }))
+      .filter((item) => Boolean(item.hora))
+      .sort((a, b) => a.hora.localeCompare(b.hora))
+      .slice(0, 5);
+  }, [reservations]);
 
-      // Resetear la animación después de 3 segundos
-      setTimeout(() => setNuevaReserva(null), 3000);
-    }, 5000);
+  const realTimeReservations: RealTimeReservation[] = useMemo(() => {
+    return reservations
+      .map((reservation) => ({
+        id: reservation.id,
+        operador: reservation.operadorNombre,
+        personas: reservation.personas,
+        timestamp: new Date(reservation.timestamp),
+        tipo: reservation.tipo
+      }))
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 6);
+  }, [reservations]);
 
-    return () => clearInterval(interval);
-  }, []);
+  const capacityVsDemand = useMemo(() => {
+    return operators.map((operator) => ({
+      nombre: operator.nombre,
+      clientesHoy: operator.clientesHoy,
+      capacidad: operator.capacidadTotal
+    }));
+  }, [operators]);
 
   if (currentView === 'operators') {
     return <TourOperatorsView onBack={() => setCurrentView('dashboard')} />;
@@ -81,7 +102,6 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-surface">
-      {/* Header */}
       <header className="bg-card shadow-ocean border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -91,379 +111,311 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
               </div>
               <h1 className="text-xl font-bold text-foreground">AquaReservas Dashboard</h1>
             </div>
-            <Button variant="outline" onClick={onLogout}>
-              Cerrar Sesión
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setCurrentView('operators')}>
+                Gestionar operadores
+              </Button>
+              <Button variant="outline" onClick={onLogout}>
+                Cerrar sesión
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="shadow-ocean hover:shadow-depth transition-shadow duration-300">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {isError && (
+          <Card className="border-destructive/50">
+            <CardContent className="py-4">
+              <p className="text-destructive">
+                No fue posible cargar los datos desde Supabase: {error?.message ?? 'Error desconocido'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="shadow-ocean">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Clientes del Día
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Clientes del día</CardTitle>
               <Users className="h-5 w-5 text-secondary" />
             </CardHeader>
             <CardContent>
-              <div className={`text-3xl font-bold text-secondary transition-all duration-500 ${nuevaReserva ? 'animate-pulse' : ''}`}>
-                {clientesTotal}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Total acumulado
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="shadow-ocean hover:shadow-depth transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Clientes Hoy
-              </CardTitle>
-              <Users className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">{mockData.totalClientes}</div>
-              <p className="text-sm text-muted-foreground">
-                Distribuidos entre {mockData.tourOperadores.length} operadores
-              </p>
+              <div className="text-3xl font-bold text-secondary">{isLoading ? '...' : totalClientes}</div>
+              <p className="text-sm text-muted-foreground">Total acumulado hoy</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-coral hover:shadow-depth transition-shadow duration-300">
+          <Card className="shadow-ocean">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Reservas Activas
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Operadores activos</CardTitle>
+              <Ship className="h-5 w-5 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-primary">{isLoading ? '...' : operators.length}</div>
+              <p className="text-sm text-muted-foreground">Con actividad registrada hoy</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-coral">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Reservas activas</CardTitle>
               <Calendar className="h-5 w-5 text-secondary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-secondary">{mockData.reservasHoy}</div>
-              <p className="text-sm text-muted-foreground">
-                Para el día de hoy
-              </p>
+              <div className="text-3xl font-bold text-secondary">{isLoading ? '...' : reservasHoy}</div>
+              <p className="text-sm text-muted-foreground">Registros sincronizados hoy</p>
             </CardContent>
           </Card>
 
-          <Card className="shadow-ocean hover:shadow-depth transition-shadow duration-300">
+          <Card className="shadow-ocean">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Próximas Salidas
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Próximas salidas</CardTitle>
               <Anchor className="h-5 w-5 text-accent-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-accent-foreground">{mockData.proximasSalidas.length}</div>
-              <p className="text-sm text-muted-foreground">
-                Tours programados
-              </p>
+              <div className="text-3xl font-bold text-accent-foreground">{isLoading ? '...' : upcomingDepartures.length}</div>
+              <p className="text-sm text-muted-foreground">Programadas para hoy</p>
             </CardContent>
           </Card>
-        </div>
+        </section>
 
-        {/* Distribución en Tiempo Real */}
-        <div className="mb-8">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="shadow-depth">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Users className="h-5 w-5 text-secondary" />
-                <span>Distribución de Clientes en Tiempo Real</span>
+                <span>Distribución de clientes en tiempo real</span>
                 <div className="ml-auto flex items-center space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+                  <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
                   <span className="text-sm text-muted-foreground">En vivo</span>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Clientes por Operador */}
-              <div className="space-y-4 mb-6">
-                <h4 className="font-semibold text-foreground mb-3">Distribución por Tour Operador</h4>
-                {mockData.tourOperadores.map((operador) => (
-                  <div key={operador.id} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-foreground">{operador.nombre}</span>
-                      <div className="flex items-center space-x-4">
-                        <span className="text-sm text-muted-foreground">{operador.porcentaje}%</span>
-                        <span className={`text-lg font-bold transition-all duration-500 ${
-                          nuevaReserva?.operador === operador.nombre ? 'text-secondary animate-pulse' : 'text-primary'
-                        }`}>
-                          {operador.clientes} personas
-                        </span>
+              {distribution.length === 0 ? (
+                <p className="text-muted-foreground">Aún no hay clientes registrados para hoy.</p>
+              ) : (
+                <div className="space-y-4 mb-6">
+                  <h4 className="font-semibold text-foreground mb-3">Distribución por tour operador</h4>
+                  {distribution.map((operador) => (
+                    <div key={operador.id} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-foreground">{operador.nombre}</span>
+                        <div className="flex items-center space-x-4">
+                          <span className="text-sm text-muted-foreground">{operador.porcentaje}%</span>
+                          <span className="text-lg font-bold text-primary">{operador.clientes} personas</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-3">
+                        <div
+                          className="h-3 rounded-full bg-gradient-ocean transition-all duration-1000"
+                          style={{ width: `${Math.min(operador.porcentaje, 100)}%` }}
+                        />
                       </div>
                     </div>
-                    <div className="w-full bg-muted rounded-full h-3">
-                      <div 
-                        className={`h-3 rounded-full transition-all duration-1000 ${
-                          nuevaReserva?.operador === operador.nombre 
-                            ? 'bg-gradient-coral animate-pulse' 
-                            : 'bg-gradient-ocean'
-                        }`}
-                        style={{ 
-                          width: `${Math.min((operador.clientes / Math.max(...mockData.tourOperadores.map(op => op.clientes))) * 100, 100)}%`
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
 
-              {/* Historial de Reservas Recientes - Redesigned */}
               <div className="border-t border-border pt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-semibold text-foreground flex items-center">
                     <div className="p-2 rounded-lg bg-gradient-ocean mr-3">
                       <Calendar className="h-4 w-4 text-primary-foreground" />
                     </div>
-                    Últimas Reservas
+                    Últimas reservas
                   </h4>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+                    <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
                     <span>Actualizando en vivo</span>
                   </div>
                 </div>
-                
+
                 <div className="grid gap-3">
-                  {mockData.reservasRealTime.map((reserva, index) => (
-                    <div 
-                      key={reserva.id} 
-                      className={`group relative overflow-hidden rounded-xl border transition-all duration-500 hover:shadow-ocean ${
-                        index === 0 && nuevaReserva 
-                          ? 'bg-gradient-to-r from-secondary/10 to-primary/5 border-secondary shadow-lg animate-scale-in' 
-                          : 'bg-card border-border hover:border-primary/20'
-                      }`}
-                    >
-                      {/* Nueva reserva indicator */}
-                      {index === 0 && nuevaReserva && (
-                        <div className="absolute top-0 right-0 bg-gradient-coral text-secondary-foreground text-xs px-2 py-1 rounded-bl-lg animate-fade-in">
-                          ¡Nueva!
-                        </div>
-                      )}
-                      
-                      <div className="p-4">
-                        <div className="flex items-center justify-between">
-                          {/* Left side - Operator info */}
-                          <div className="flex items-center space-x-4">
-                            <div className={`relative p-3 rounded-xl transition-all duration-300 ${
-                              index === 0 && nuevaReserva 
-                                ? 'bg-gradient-coral shadow-lg' 
-                                : 'bg-gradient-surface border border-border group-hover:bg-gradient-ocean'
-                            }`}>
-                              <Ship className={`h-5 w-5 transition-colors duration-300 ${
-                                index === 0 && nuevaReserva 
-                                  ? 'text-secondary-foreground' 
-                                  : 'text-primary group-hover:text-primary-foreground'
-                              }`} />
-                              
-                              {/* Pulsing ring for new reservations */}
-                              {index === 0 && nuevaReserva && (
-                                <div className="absolute inset-0 rounded-xl border-2 border-secondary animate-ping"></div>
-                              )}
+                  {realTimeReservations.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sin movimientos registrados hoy.</p>
+                  ) : (
+                    realTimeReservations.map((reserva) => (
+                      <div
+                        key={reserva.id}
+                        className="group relative overflow-hidden rounded-xl border bg-card border-border transition-all duration-500 hover:shadow-ocean"
+                      >
+                        <div className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-sm text-muted-foreground">{reserva.tipo}</p>
+                              <p className="text-lg font-semibold text-foreground">{reserva.operador}</p>
                             </div>
-                            
-                            <div className="space-y-1">
-                              <p className={`font-semibold transition-colors duration-300 ${
-                                index === 0 && nuevaReserva ? 'text-secondary' : 'text-foreground'
-                              }`}>
-                                {reserva.operador}
-                              </p>
-                              <div className="flex items-center space-x-3">
-                                <span className="inline-flex items-center px-2 py-1 rounded-md bg-gradient-surface text-xs font-medium text-muted-foreground border border-border">
-                                  {reserva.tipo}
-                                </span>
-                                <span className="text-xs text-muted-foreground flex items-center">
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {reserva.timestamp.toLocaleTimeString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Right side - People count */}
-                          <div className="text-right">
-                            <div className={`inline-flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-300 ${
-                              index === 0 && nuevaReserva 
-                                ? 'bg-gradient-coral text-secondary-foreground shadow-lg' 
-                                : 'bg-gradient-surface border border-border'
-                            }`}>
-                              <Users className="h-4 w-4" />
-                              <span className={`font-bold transition-all duration-300 ${
-                                index === 0 && nuevaReserva ? 'text-lg' : 'text-base'
-                              }`}>
-                                {reserva.personas}
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline" className="text-foreground">
+                                {reserva.personas} pax
+                              </Badge>
+                              <span className="text-xs text-muted-foreground flex items-center">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {Number.isNaN(reserva.timestamp.getTime())
+                                  ? '...'
+                                  : reserva.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">personas</p>
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Animated bottom border for new reservations */}
-                      {index === 0 && nuevaReserva && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary via-primary to-secondary animate-pulse"></div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                
-                {/* View all button */}
-                <div className="mt-4 text-center">
-                  <Button variant="ghost" className="text-primary hover:text-primary-foreground hover:bg-gradient-ocean">
-                    Ver todas las reservas
-                    <TrendingUp className="h-4 w-4 ml-2" />
-                  </Button>
+                    ))
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Pie Chart */}
           <Card className="shadow-depth">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <BarChart3 className="h-5 w-5 text-primary" />
-                <span>Distribución de Clientes (Gráfico)</span>
+                <span>Capacidad vs demanda</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={mockData.tourOperadores}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ nombre, porcentaje }) => `${nombre}: ${porcentaje}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="clientes"
-                  >
-                    {mockData.tourOperadores.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`${value} personas`, 'Clientes']} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Bar Chart */}
-          <Card className="shadow-depth">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <BarChart3 className="h-5 w-5 text-secondary" />
-                <span>Comparativo por Operador</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={mockData.tourOperadores}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="nombre" 
-                    angle={-45}
-                    textAnchor="end"
-                    height={100}
-                    interval={0}
-                    fontSize={12}
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip 
-                    formatter={(value) => [`${value} personas`, 'Clientes']}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Bar dataKey="clientes" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Tour Operators Distribution */}
-          <Card className="shadow-depth">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                <span>Distribución por Tour Operador</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {mockData.tourOperadores.map((operador) => (
-                <div key={operador.id} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-foreground">{operador.nombre}</span>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-muted-foreground">{operador.clientes} personas</span>
-                      <span className="text-sm font-semibold text-primary">{operador.porcentaje}%</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className="bg-gradient-ocean h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${operador.porcentaje}%` }}
-                    ></div>
-                  </div>
+            <CardContent className="h-72">
+              {capacityVsDemand.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  Sin datos para graficar
                 </div>
-              ))}
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={capacityVsDemand}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="nombre" stroke="currentColor" className="text-xs fill-muted-foreground" />
+                    <YAxis stroke="currentColor" className="text-xs fill-muted-foreground" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="clientesHoy" fill="hsl(var(--primary))" name="Clientes" />
+                    <Bar dataKey="capacidad" fill="hsl(var(--secondary))" name="Capacidad" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="shadow-depth lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                <span>Participación por operador</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              {distribution.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  Sin datos suficientes
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={distribution} dataKey="clientes" nameKey="nombre" cx="50%" cy="50%" outerRadius={110} label>
+                      {distribution.map((entry, index) => (
+                        <Cell key={`cell-${entry.id}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
-          {/* Upcoming Tours */}
           <Card className="shadow-depth">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Fish className="h-5 w-5 text-secondary" />
-                <span>Próximas Salidas</span>
+                <DollarSign className="h-5 w-5 text-secondary" />
+                <span>Próximas salidas</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {mockData.proximasSalidas.map((salida, index) => (
-                <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-gradient-surface border border-border">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-full bg-gradient-coral">
-                      <Anchor className="h-4 w-4 text-secondary-foreground" />
-                    </div>
+              {upcomingDepartures.length === 0 ? (
+                <p className="text-muted-foreground">Aún no hay salidas programadas.</p>
+              ) : (
+                upcomingDepartures.map((salida, index) => (
+                  <div key={`${salida.operador}-${index}`} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
                     <div>
-                      <p className="font-semibold text-foreground">{salida.hora}</p>
                       <p className="text-sm text-muted-foreground">{salida.operador}</p>
+                      <p className="text-lg font-semibold text-foreground">{salida.clientes} pasajeros</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-foreground">{salida.hora}</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-primary">{salida.clientes}</p>
-                    <p className="text-sm text-muted-foreground">personas</p>
-                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="shadow-depth">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Fish className="h-5 w-5 text-primary" />
+                <span>Capacidad disponible</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {operators.length === 0 ? (
+                <p className="text-muted-foreground">Registra operadores para visualizar su capacidad.</p>
+              ) : (
+                operators.map((operator) => {
+                  const disponible = Math.max(operator.capacidadTotal - operator.clientesHoy, 0);
+                  return (
+                    <div key={operator.id} className="p-3 rounded-lg border border-border bg-card flex justify-between items-center">
+                      <div>
+                        <p className="font-semibold text-foreground">{operator.nombre}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Capacidad total {operator.capacidadTotal} · Disponibles {disponible}
+                        </p>
+                      </div>
+                      <Badge variant={disponible > 0 ? 'secondary' : 'destructive'}>
+                        {disponible > 0 ? `${disponible} libres` : 'Sin cupo'}
+                      </Badge>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-depth">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <MapPin className="h-5 w-5 text-secondary" />
+                <span>Resumen operativo</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 bg-gradient-surface rounded-lg border border-border">
+                  <p className="text-muted-foreground">Operadores totales</p>
+                  <p className="text-xl font-bold text-foreground">{operators.length}</p>
                 </div>
-              ))}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                <Button variant="ocean" className="w-full">
-                  Ver Todas las Reservas
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={() => setCurrentView('operators')}
-                >
-                  <Ship className="h-4 w-4 mr-2" />
-                  Ver Operadores
-                </Button>
+                <div className="p-3 bg-gradient-surface rounded-lg border border-border">
+                  <p className="text-muted-foreground">Reservas hoy</p>
+                  <p className="text-xl font-bold text-foreground">{reservasHoy}</p>
+                </div>
+                <div className="p-3 bg-gradient-surface rounded-lg border border-border">
+                  <p className="text-muted-foreground">Clientes asignados</p>
+                  <p className="text-xl font-bold text-foreground">{totalClientes}</p>
+                </div>
+                <div className="p-3 bg-gradient-surface rounded-lg border border-border">
+                  <p className="text-muted-foreground">Promedio por operador</p>
+                  <p className="text-xl font-bold text-foreground">
+                    {operators.length ? Math.round(totalClientes / operators.length) : 0}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
-        </div>
+        </section>
       </main>
     </div>
   );
