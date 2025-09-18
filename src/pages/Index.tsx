@@ -1,33 +1,35 @@
-import { useState } from "react";
-import { LoginScreen } from "@/components/LoginScreen";
-import { Dashboard } from "@/components/Dashboard";
-import { SalesView } from "@/components/SalesView";
+import { LoginScreen } from '@/components/LoginScreen';
+import { Dashboard } from '@/components/Dashboard';
+import { SalesView } from '@/components/SalesView';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 const Index = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userType, setUserType] = useState<'admin' | 'seller'>('seller');
-
-  const handleLogin = (type: 'admin' | 'seller') => {
-    setUserType(type);
-    setIsLoggedIn(true);
-  };
+  const { session, role, loading, signOut } = useSupabaseAuth();
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserType('seller');
+    signOut().catch((error) => {
+      console.error('Error while signing out', error);
+    });
   };
 
-  return (
-    <>
-      {!isLoggedIn ? (
-        <LoginScreen onLogin={handleLogin} />
-      ) : userType === 'admin' ? (
-        <Dashboard onLogout={handleLogout} />
-      ) : (
-        <SalesView onBack={handleLogout} />
-      )}
-    </>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-surface text-foreground">
+        Cargando...
+      </div>
+    );
+  }
+
+  if (!session || !role) {
+    return <LoginScreen />;
+  }
+
+  return role === 'admin' ? (
+    <Dashboard onLogout={handleLogout} />
+  ) : (
+    <SalesView onBack={handleLogout} />
   );
 };
 
 export default Index;
+
