@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +27,7 @@ const copy: Record<AuthMode, ModeCopy> = {
   },
   signup: {
     title: 'Crear cuenta',
-    subtitle: 'Registra un nuevo perfil de operador',
+    subtitle: 'Registra un nuevo perfil de vendedor (los administradores se crean en Supabase)',
     button: 'Registrarme',
     helper: 'Ya tienes cuenta?',
     switchAction: 'Inicia sesion',
@@ -51,6 +51,12 @@ export const LoginScreen = () => {
   const { toast } = useToast();
 
   const modeCopy = useMemo(() => copy[mode], [mode]);
+
+  useEffect(() => {
+    if (mode === 'signup') {
+      setUserType('seller');
+    }
+  }, [mode]);
 
   const toggleMode = () => {
     setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
@@ -82,6 +88,14 @@ export const LoginScreen = () => {
 
     setIsLoading(true);
 
+    const selectedRole: AppRole = mode === 'signup' ? 'seller' : userType;
+
+    if (mode === 'signup' && selectedRole !== 'seller') {
+      setIsLoading(false);
+      setFormError('Solo se pueden registrar cuentas de vendedor.');
+      return;
+    }
+
     try {
       if (mode === 'signin') {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -97,7 +111,7 @@ export const LoginScreen = () => {
           throw new Error('Tu cuenta no tiene un rol asignado. Contacta al administrador.');
         }
 
-        if (role !== userType) {
+        if (role !== selectedRole) {
           await supabase.auth.signOut();
           throw new Error('El rol seleccionado no coincide con el rol de tu cuenta.');
         }
@@ -126,7 +140,7 @@ export const LoginScreen = () => {
 
         if (data.session?.access_token) {
           try {
-            await syncRoleToAppMetadata(userType);
+            await syncRoleToAppMetadata(selectedRole);
           } catch (syncError) {
             console.warn('No se pudo registrar el rol en app_metadata durante el alta.', syncError);
           }
@@ -209,7 +223,7 @@ export const LoginScreen = () => {
                     variant={userType === roleOption ? 'ocean' : 'outline'}
                     onClick={() => setUserType(roleOption)}
                     className="w-full"
-                    disabled={isLoading}
+                    disabled={isLoading || (mode === 'signup' && roleOption === 'admin')}
                   >
                     {roleOption === 'seller' ? (
                       <User className="h-4 w-4 mr-2" />
@@ -220,6 +234,11 @@ export const LoginScreen = () => {
                   </Button>
                 ))}
               </div>
+              {mode === 'signup' ? (
+                <p className="text-xs text-muted-foreground">
+                  Solo el personal administrador puede crear cuentas de administrador directamente en Supabase.
+                </p>
+              ) : null}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
