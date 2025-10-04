@@ -128,7 +128,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
           <Card className="border-destructive/50">
             <CardContent className="py-4">
               <p className="text-destructive">
-                No fue posible cargar los datos desde Supabase: {error?.message ?? 'Error desconocido'}
+                No fue posible cargar los datos locales: {error?.message ?? 'Error desconocido'}
               </p>
             </CardContent>
           </Card>

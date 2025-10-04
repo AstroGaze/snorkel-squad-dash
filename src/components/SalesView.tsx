@@ -293,7 +293,7 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
               {isLoading ? (
                 <div className="py-8 flex flex-col items-center space-y-3 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Sincronizando con Supabase...</span>
+                  <span>Sincronizando datos...</span>
                 </div>
               ) : operadores.length === 0 ? (
                 <p className="text-muted-foreground">No hay operadores disponibles para asignar reservas.</p>

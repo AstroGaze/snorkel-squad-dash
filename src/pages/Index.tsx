@@ -1,10 +1,10 @@
 import { LoginScreen } from '@/components/LoginScreen';
 import { Dashboard } from '@/components/Dashboard';
 import { SalesView } from '@/components/SalesView';
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
-  const { session, role, loading, signOut } = useSupabaseAuth();
+  const { session, role, loading, signOut } = useAuth();
 
   const handleLogout = () => {
     signOut().catch((error) => {
@@ -32,4 +32,3 @@ const Index = () => {
 };
 
 export default Index;
-

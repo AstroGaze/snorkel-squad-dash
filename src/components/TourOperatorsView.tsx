@@ -85,7 +85,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
   const handleSubmit = async (payload: TourOperatorInput) => {
     try {
       await upsertMutation.mutateAsync(payload);
-      toast({ title: 'Tour operador guardado', description: 'Los datos fueron sincronizados con Supabase.' });
+      toast({ title: 'Tour operador guardado', description: 'Los datos se guardaron localmente.' });
       handleFormClose();
     } catch (mutationError) {
       const message = mutationError instanceof Error ? mutationError.message : 'No se pudo guardar el operador.';
@@ -97,7 +97,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
     try {
       setDeleteTargetId(operatorId);
       await deleteMutation.mutateAsync(operatorId);
-      toast({ title: 'Tour operador eliminado', description: 'El registro fue eliminado de Supabase.' });
+      toast({ title: 'Tour operador eliminado', description: 'El registro fue eliminado del almacenamiento local.' });
     } catch (mutationError) {
       const message = mutationError instanceof Error ? mutationError.message : 'No se pudo eliminar el operador.';
       toast({ title: 'Error al eliminar', description: message, variant: 'destructive' });
@@ -183,7 +183,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
           <Card className="shadow-ocean">
             <CardContent className="py-12 flex flex-col items-center space-y-4">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="text-muted-foreground">Cargando operadores desde Supabase</span>
+              <span className="text-muted-foreground">Cargando operadores locales...</span>
             </CardContent>
           </Card>
         ) : (

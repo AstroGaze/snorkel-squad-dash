@@ -1,39 +1,4 @@
-import { startOfDay, endOfDay } from 'date-fns';
-import { getSupabaseClient } from '@/lib/supabaseClient';
-
-const TABLES = {
-  TOUR_OPERATORS: 'tour_operators',
-  BOATS: 'tour_operator_boats',
-  SCHEDULES: 'tour_operator_schedules',
-  RESERVATIONS: 'reservations'
-} as const;
-
-const extractOperatorId = (item: Record<string, unknown>): number | null => {
-  const candidate = item.tour_operator_id ?? item.operador_id ?? item.operator_id;
-  if (typeof candidate === 'number') {
-    return candidate;
-  }
-  if (typeof candidate === 'string') {
-    const parsed = Number.parseInt(candidate, 10);
-    return Number.isNaN(parsed) ? null : parsed;
-  }
-  return null;
-};
-
-const coerceNumber = (value: unknown, fallback = 0): number => {
-  if (typeof value === 'number') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const parsed = Number.parseFloat(value);
-    return Number.isNaN(parsed) ? fallback : parsed;
-  }
-  return fallback;
-};
-
-const coerceString = (value: unknown, fallback = ''): string => {
-  return typeof value === 'string' ? value : fallback;
-};
+import { endOfDay, startOfDay } from 'date-fns';
 
 export interface OperatorBoat {
   id?: number;
@@ -74,161 +39,215 @@ export interface OperatorsBundle {
   reservationsToday: ReservationRecord[];
 }
 
-const normaliseBoat = (boat: Record<string, unknown>): OperatorBoat => ({
-  id: coerceNumber(boat.id),
-  nombre: coerceString(boat.nombre ?? boat.name),
-  capacidad: coerceNumber(boat.capacidad ?? boat.capacity),
-  estado: coerceString(boat.estado ?? boat.status, 'Activo'),
-  tipo: coerceString(boat.tipo ?? boat.type)
-});
+type StoredOperator = Omit<TourOperator, 'clientesHoy'>;
 
-const normaliseSchedule = (schedule: Record<string, unknown>): string => {
-  const value = schedule.hora ?? schedule.departure_time ?? schedule.hora_salida ?? schedule.time;
-  return coerceString(value);
+type StoredReservation = {
+  id: number;
+  operadorId: number;
+  personas: number;
+  tipo: string;
+  timestamp: string;
+  horaSalida: string | null;
 };
 
-const normaliseReservation = (
-  item: Record<string, unknown>,
-  operatorNameMap: Map<number, string>
-): ReservationRecord | null => {
-  const operadorId = extractOperatorId(item);
-  if (!operadorId) {
+interface OperatorsState {
+  operators: StoredOperator[];
+  reservations: StoredReservation[];
+  nextOperatorId: number;
+  nextReservationId: number;
+}
+
+const STORAGE_KEY = 'aquareservas::operators-state';
+
+const DEFAULT_OPERATORS: StoredOperator[] = [
+  {
+    id: 1,
+    nombre: 'Bahia Azul',
+    contacto: {
+      telefono: '311-555-0101',
+      email: 'contacto@bahiaazul.mx',
+      direccion: 'Muelle central 12'
+    },
+    botes: [
+      { id: 1, nombre: 'Coral Uno', capacidad: 20, estado: 'Activo', tipo: 'Lancha' },
+      { id: 2, nombre: 'Coral Dos', capacidad: 18, estado: 'Activo', tipo: 'Lancha' }
+    ],
+    personal: 8,
+    capacidadTotal: 38,
+    horarios: ['08:00', '11:00', '14:30'],
+    especialidad: 'Snorkel familiar'
+  },
+  {
+    id: 2,
+    nombre: 'EcoMar Experiencias',
+    contacto: {
+      telefono: '311-555-0175',
+      email: 'hola@ecomar.com',
+      direccion: 'Av. Costera 201'
+    },
+    botes: [
+      { id: 3, nombre: 'Libelula', capacidad: 24, estado: 'Activo', tipo: 'Catamaran' },
+      { id: 4, nombre: 'Marea', capacidad: 16, estado: 'Mantenimiento', tipo: 'Lancha' }
+    ],
+    personal: 12,
+    capacidadTotal: 40,
+    horarios: ['09:15', '13:00'],
+    especialidad: 'Tours ecologicos'
+  },
+  {
+    id: 3,
+    nombre: 'Reef Masters',
+    contacto: {
+      telefono: '311-555-0210',
+      email: 'reservas@reefmasters.mx',
+      direccion: 'Plaza Marina Local 5'
+    },
+    botes: [
+      { id: 5, nombre: 'Pelicano', capacidad: 15, estado: 'Activo', tipo: 'Lancha' },
+      { id: 6, nombre: 'Albatros', capacidad: 28, estado: 'Activo', tipo: 'Catamaran' }
+    ],
+    personal: 10,
+    capacidadTotal: 43,
+    horarios: ['07:30', '10:30', '15:00'],
+    especialidad: 'Snorkel avanzado'
+  }
+];
+
+const hasWindow = typeof window !== 'undefined';
+const hasStorage = hasWindow && typeof window.localStorage !== 'undefined';
+
+let cachedState: OperatorsState | null = null;
+
+const cloneBoat = (boat: OperatorBoat): OperatorBoat => ({ ...boat });
+
+const cloneStoredOperator = (operator: StoredOperator): StoredOperator => ({
+  id: operator.id,
+  nombre: operator.nombre,
+  contacto: { ...operator.contacto },
+  botes: operator.botes.map((boat) => cloneBoat(boat)),
+  personal: operator.personal,
+  capacidadTotal: operator.capacidadTotal,
+  horarios: [...operator.horarios],
+  especialidad: operator.especialidad
+});
+
+const toTourOperator = (operator: StoredOperator, clientesHoy = 0): TourOperator => ({
+  id: operator.id,
+  nombre: operator.nombre,
+  contacto: { ...operator.contacto },
+  botes: operator.botes.map((boat) => cloneBoat(boat)),
+  personal: operator.personal,
+  capacidadTotal: operator.capacidadTotal,
+  horarios: [...operator.horarios],
+  especialidad: operator.especialidad,
+  clientesHoy
+});
+
+const cloneReservation = (reservation: StoredReservation): StoredReservation => ({ ...reservation });
+
+const createDefaultState = (): OperatorsState => ({
+  operators: DEFAULT_OPERATORS.map((operator) => cloneStoredOperator(operator)),
+  reservations: [],
+  nextOperatorId: DEFAULT_OPERATORS.length + 1,
+  nextReservationId: 1
+});
+
+const readFromStorage = (): OperatorsState | null => {
+  if (!hasStorage) {
     return null;
   }
 
-  const personas = coerceNumber(item.personas ?? item.passengers ?? item.cantidad ?? item.people, 0);
-  const tipo = coerceString(item.tipo ?? item.type ?? 'Reserva');
-  const timestamp = coerceString(item.created_at ?? item.timestamp ?? item.fecha ?? new Date().toISOString());
-  const horaSalidaValue = item.hora_salida ?? item.departure_time ?? item.hora ?? null;
-  const horaSalida = horaSalidaValue ? coerceString(horaSalidaValue) : null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
 
-  return {
-    id: coerceNumber(item.id),
-    operadorId,
-    operadorNombre: operatorNameMap.get(operadorId) ?? '',
-    personas,
-    tipo,
-    timestamp,
-    horaSalida
-  };
+    const parsed = JSON.parse(raw) as OperatorsState;
+    if (!parsed || !Array.isArray(parsed.operators) || !Array.isArray(parsed.reservations)) {
+      return null;
+    }
+
+    return {
+      operators: parsed.operators.map((operator) => cloneStoredOperator(operator)),
+      reservations: parsed.reservations.map((reservation) => cloneReservation(reservation)),
+      nextOperatorId: typeof parsed.nextOperatorId === 'number' ? parsed.nextOperatorId : DEFAULT_OPERATORS.length + 1,
+      nextReservationId: typeof parsed.nextReservationId === 'number' ? parsed.nextReservationId : 1
+    };
+  } catch (error) {
+    console.warn('Failed to parse stored operators state', error);
+    return null;
+  }
+};
+
+const persistState = (state: OperatorsState) => {
+  cachedState = state;
+
+  if (hasStorage) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.warn('Failed to persist operators state', error);
+    }
+  }
+};
+
+const getState = (): OperatorsState => {
+  if (cachedState) {
+    return cachedState;
+  }
+
+  const stored = readFromStorage();
+  if (stored) {
+    cachedState = stored;
+    return cachedState;
+  }
+
+  const defaults = createDefaultState();
+  cachedState = defaults;
+  persistState(defaults);
+  return cachedState;
+};
+
+const findOperatorIndex = (state: OperatorsState, operatorId: number) => {
+  return state.operators.findIndex((operator) => operator.id === operatorId);
 };
 
 export const fetchOperatorsBundle = async (): Promise<OperatorsBundle> => {
-  const supabase = getSupabaseClient();
+  const state = getState();
 
-  const { data: operatorsData, error: operatorsError } = await supabase
-    .from(TABLES.TOUR_OPERATORS)
-    .select('*')
-    .order('nombre', { ascending: true });
+  const operators = state.operators.map((operator) => toTourOperator(operator, 0));
+  const operatorById = new Map<number, TourOperator>(operators.map((operator) => [operator.id, operator]));
+  const operatorName = new Map<number, string>(state.operators.map((operator) => [operator.id, operator.nombre]));
 
-  if (operatorsError) {
-    throw new Error(operatorsError.message);
-  }
+  const todayStart = startOfDay(new Date());
+  const todayEnd = endOfDay(new Date());
 
-  const operators = operatorsData ?? [];
-  const operatorIds = operators.map((op) => coerceNumber(op.id)).filter((id) => id > 0);
+  const reservationsToday: ReservationRecord[] = state.reservations
+    .filter((reservation) => {
+      const createdAt = new Date(reservation.timestamp);
+      return createdAt >= todayStart && createdAt <= todayEnd;
+    })
+    .map((reservation) => {
+      const target = operatorById.get(reservation.operadorId);
+      if (target) {
+        target.clientesHoy += reservation.personas;
+      }
 
-  const { data: boatsData, error: boatsError } = operatorIds.length
-    ? await supabase.from(TABLES.BOATS).select('*').in('tour_operator_id', operatorIds)
-    : { data: [] as Record<string, unknown>[], error: null };
+      return {
+        id: reservation.id,
+        operadorId: reservation.operadorId,
+        operadorNombre: operatorName.get(reservation.operadorId) ?? 'Operador',
+        personas: reservation.personas,
+        tipo: reservation.tipo,
+        timestamp: reservation.timestamp,
+        horaSalida: reservation.horaSalida ?? null
+      };
+    });
 
-  if (boatsError) {
-    throw new Error(boatsError.message);
-  }
+  operators.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  const { data: schedulesData, error: schedulesError } = operatorIds.length
-    ? await supabase.from(TABLES.SCHEDULES).select('*').in('tour_operator_id', operatorIds)
-    : { data: [] as Record<string, unknown>[], error: null };
-
-  if (schedulesError) {
-    throw new Error(schedulesError.message);
-  }
-
-  const boatsByOperator = new Map<number, OperatorBoat[]>();
-  (boatsData ?? []).forEach((boat) => {
-    const operadorId = extractOperatorId(boat);
-    if (!operadorId) {
-      return;
-    }
-    const list = boatsByOperator.get(operadorId) ?? [];
-    list.push(normaliseBoat(boat));
-    boatsByOperator.set(operadorId, list);
-  });
-
-  const schedulesByOperator = new Map<number, string[]>();
-  (schedulesData ?? []).forEach((schedule) => {
-    const operadorId = extractOperatorId(schedule);
-    if (!operadorId) {
-      return;
-    }
-    const normalised = normaliseSchedule(schedule);
-    if (!normalised) {
-      return;
-    }
-    const existing = schedulesByOperator.get(operadorId) ?? [];
-    existing.push(normalised);
-    schedulesByOperator.set(operadorId, existing);
-  });
-
-  const operatorNameMap = new Map<number, string>();
-  operators.forEach((op) => {
-    const id = coerceNumber(op.id);
-    operatorNameMap.set(id, coerceString(op.nombre ?? op.name));
-  });
-
-  const now = new Date();
-  const start = startOfDay(now).toISOString();
-  const end = endOfDay(now).toISOString();
-
-  const { data: reservationsData, error: reservationsError } = await supabase
-    .from(TABLES.RESERVATIONS)
-    .select('*')
-    .gte('created_at', start)
-    .lte('created_at', end)
-    .order('created_at', { ascending: false });
-
-  if (reservationsError) {
-    throw new Error(reservationsError.message);
-  }
-
-  const clientsByOperator = new Map<number, number>();
-  const reservationsToday: ReservationRecord[] = [];
-
-  (reservationsData ?? []).forEach((item: Record<string, unknown>) => {
-    const reservation = normaliseReservation(item, operatorNameMap);
-    if (!reservation) {
-      return;
-    }
-    reservationsToday.push(reservation);
-    const current = clientsByOperator.get(reservation.operadorId) ?? 0;
-    clientsByOperator.set(reservation.operadorId, current + reservation.personas);
-  });
-
-  const mappedOperators: TourOperator[] = operators.map((operator) => {
-    const id = coerceNumber(operator.id);
-    const horarios = (schedulesByOperator.get(id) ?? []).sort();
-
-    return {
-      id,
-      nombre: coerceString(operator.nombre ?? operator.name),
-      contacto: {
-        telefono: coerceString(operator.telefono ?? operator.phone),
-        email: coerceString(operator.email),
-        direccion: coerceString(operator.direccion ?? operator.address)
-      },
-      botes: (boatsByOperator.get(id) ?? []).sort((a, b) => a.nombre.localeCompare(b.nombre)),
-      personal: coerceNumber(operator.personal ?? operator.staff_count),
-      capacidadTotal: coerceNumber(operator.capacidad_total ?? operator.capacity_total),
-      horarios,
-      especialidad: coerceString(operator.especialidad ?? operator.specialty),
-      clientesHoy: clientsByOperator.get(id) ?? 0
-    };
-  });
-
-  return {
-    operators: mappedOperators,
-    reservationsToday
-  };
+  return { operators, reservationsToday };
 };
 
 export interface TourOperatorInput {
@@ -246,87 +265,68 @@ export interface TourOperatorInput {
   especialidad: string;
 }
 
-const sanitiseBoatPayload = (boat: OperatorBoat, tourOperatorId: number) => ({
+const sanitiseBoat = (boat: OperatorBoat): OperatorBoat => ({
   nombre: boat.nombre,
-  capacidad: boat.capacidad,
-  estado: boat.estado,
-  tipo: boat.tipo,
-  tour_operator_id: tourOperatorId
-});
-
-const sanitiseSchedulePayload = (hora: string, tourOperatorId: number) => ({
-  hora,
-  tour_operator_id: tourOperatorId
+  capacidad: Math.max(0, boat.capacidad),
+  estado: boat.estado || 'Activo',
+  tipo: boat.tipo || 'Lancha'
 });
 
 export const upsertTourOperator = async (input: TourOperatorInput): Promise<number> => {
-  const supabase = getSupabaseClient();
+  const state = getState();
 
-  const { id, contacto, botes, horarios, personal, capacidadTotal, especialidad, nombre } = input;
+  if (!input.nombre) {
+    throw new Error('El operador debe tener un nombre.');
+  }
 
-  const operatorPayload = {
-    id,
-    nombre,
-    telefono: contacto.telefono,
-    email: contacto.email,
-    direccion: contacto.direccion,
-    personal,
-    capacidad_total: capacidadTotal,
-    especialidad
+  const cleanedBoats = input.botes.filter((boat) => boat.nombre).map((boat) => sanitiseBoat(boat));
+  if (!cleanedBoats.length) {
+    throw new Error('Registra al menos una embarcacion.');
+  }
+
+  let operatorId = typeof input.id === 'number' ? input.id : state.nextOperatorId;
+  const storedOperator: StoredOperator = {
+    id: operatorId,
+    nombre: input.nombre,
+    contacto: {
+      telefono: input.contacto.telefono,
+      email: input.contacto.email,
+      direccion: input.contacto.direccion
+    },
+    botes: cleanedBoats,
+    personal: input.personal,
+    capacidadTotal: input.capacidadTotal,
+    horarios: [...new Set(input.horarios.filter(Boolean))].sort(),
+    especialidad: input.especialidad
   };
 
-  const { data: operatorResult, error } = await supabase
-    .from(TABLES.TOUR_OPERATORS)
-    .upsert(operatorPayload)
-    .select('id')
-    .single();
+  const existingIndex = findOperatorIndex(state, operatorId);
 
-  if (error) {
-    throw new Error(error.message);
+  if (existingIndex >= 0) {
+    state.operators[existingIndex] = storedOperator;
+  } else {
+    operatorId = state.nextOperatorId++;
+    storedOperator.id = operatorId;
+    state.operators.push(storedOperator);
   }
 
-  const operatorId = coerceNumber(operatorResult?.id ?? id);
-
-  if (!operatorId) {
-    throw new Error('No se pudo determinar el identificador del tour operador.');
-  }
-
-  await supabase.from(TABLES.BOATS).delete().eq('tour_operator_id', operatorId);
-  await supabase.from(TABLES.SCHEDULES).delete().eq('tour_operator_id', operatorId);
-
-  const boatPayload = botes.filter((boat) => boat.nombre).map((boat) => sanitiseBoatPayload(boat, operatorId));
-  if (boatPayload.length) {
-    const { error: boatsError } = await supabase.from(TABLES.BOATS).insert(boatPayload);
-    if (boatsError) {
-      throw new Error(boatsError.message);
-    }
-  }
-
-  const schedulePayload = horarios.filter(Boolean).map((hora) => sanitiseSchedulePayload(hora, operatorId));
-  if (schedulePayload.length) {
-    const { error: schedulesError } = await supabase.from(TABLES.SCHEDULES).insert(schedulePayload);
-    if (schedulesError) {
-      throw new Error(schedulesError.message);
-    }
-  }
+  persistState(state);
 
   return operatorId;
 };
 
 export const deleteTourOperator = async (operatorId: number) => {
-  const supabase = getSupabaseClient();
+  const state = getState();
 
-  await supabase.from(TABLES.BOATS).delete().eq('tour_operator_id', operatorId);
-  await supabase.from(TABLES.SCHEDULES).delete().eq('tour_operator_id', operatorId);
-
-  const { error } = await supabase
-    .from(TABLES.TOUR_OPERATORS)
-    .delete()
-    .eq('id', operatorId);
-
-  if (error) {
-    throw new Error(error.message);
+  const index = findOperatorIndex(state, operatorId);
+  if (index === -1) {
+    throw new Error('El operador ya no existe.');
   }
+
+  state.operators.splice(index, 1);
+  state.reservations = state.reservations.filter((reservation) => reservation.operadorId !== operatorId);
+
+  persistState(state);
 };
 
 export interface ReservationInput {
@@ -337,22 +337,30 @@ export interface ReservationInput {
 }
 
 export const createReservation = async (input: ReservationInput) => {
-  const supabase = getSupabaseClient();
+  const state = getState();
+  const operator = state.operators.find((item) => item.id === input.tourOperatorId);
 
-  const { data, error } = await supabase
-    .from(TABLES.RESERVATIONS)
-    .insert({
-      tour_operator_id: input.tourOperatorId,
-      personas: input.personas,
-      tipo: input.tipo ?? 'Venta directa',
-      hora_salida: input.horaSalida ?? null
-    })
-    .select('id')
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
+  if (!operator) {
+    throw new Error('No se encontro el tour operador seleccionado.');
   }
 
-  return data;
+  if (input.personas < 1) {
+    throw new Error('La reserva debe incluir al menos una persona.');
+  }
+
+  const reservationId = state.nextReservationId++;
+  const record: StoredReservation = {
+    id: reservationId,
+    operadorId: operator.id,
+    personas: input.personas,
+    tipo: input.tipo ?? 'Venta directa',
+    timestamp: new Date().toISOString(),
+    horaSalida: input.horaSalida ?? null
+  };
+
+  state.reservations.unshift(record);
+  persistState(state);
+
+  return { id: reservationId };
 };
+

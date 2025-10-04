@@ -2,56 +2,44 @@
 
 ## Funcionalidad del Proyecto
 - La ruta principal (src/pages/Index.tsx) conmuta entre login, dashboard administrativo y panel de ventas segun el rol elegido.
-- LoginScreen permite seleccionar rol, capturar credenciales y administra inicio de sesion o registro contra Supabase.
+- LoginScreen permite seleccionar rol, capturar credenciales y administra inicio de sesion o registro usando almacenamiento local.
 - Dashboard ofrece metricas en tiempo real, graficos con Recharts y acceso a la gestion de operadores mediante TourOperatorsView.
 - SalesView registra reservas, sugiere el operador con mejor disponibilidad y muestra una vista de capacidad por operador.
 - AddTourOperatorForm centraliza altas y ediciones de operadores, actualizando flotillas, horarios y datos de contacto.
 
-## Configuracion de Backend
-- Define VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en .env (usa .env.example como base) antes de ejecutar 
-pm run dev.
-- Supabase maneja email/password; el rol se guarda en user_metadata.role con valores dmin o seller para enrutar after login.
-- Ajusta politicas de confirmacion y recuperacion en Supabase Auth -> Settings segun el flujo deseado.
-- Si migras usuarios previos, aseguralos con el metadata correcto mediante la UI o scripts de Supabase.
+## Configuracion de Datos
+- La aplicacion usa almacenamiento local del navegador para sesiones, operadores y reservas; no depende de servicios externos.
+- Las cuentas semilla son admin@aquareservas.com (admin123) y ventas@aquareservas.com (ventas123).
+- No se requieren variables VITE_SUPABASE_URL ni claves de terceros para ejecutar el proyecto.
 
 ## Project Structure & Module Organization
 - src/pages hosts route-level views; Index.tsx orchestrates auth flows and dashboard switching.
-- src/components contains reusable shadcn-based UI grouped by domain; create folders when a module exceeds three files.
-- src/hooks and src/lib hold shared logic/utilities; prefer colocating business rules there over duplicating in components.
-- src/assets stores static media, while public serves raw files copied to the build.
-- Path alias @/ resolves to src; keep Vite and Tailwind config in the root (	ailwind.config.ts, ite.config.ts).
+- src/components contiene UI reutilizable basada en shadcn, agrupada por dominio; crea carpetas cuando un modulo supera tres archivos.
+- src/hooks y src/lib guardan logica compartida; centraliza reglas de negocio ahi para evitar duplicidad en componentes.
+- src/assets almacena media estatica, mientras public sirve archivos copiados al build.
+- El alias de ruta @/ resuelve a src; mantén la configuracion de Vite y Tailwind en la raiz (tailwind.config.ts, vite.config.ts).
 
 ## Build, Test, and Development Commands
-- 
-pm run dev boots the Vite dev server (default http://localhost:5173) with hot reload.
-- 
-pm run build produces an optimized bundle in dist for deployment.
-- 
-pm run build:dev builds in development mode when debugging bundle issues locally.
-- 
-pm run preview serves the contents of dist; run this to sanity-check production output.
-- 
-pm run lint executes ESLint (TypeScript + React Hooks). Resolve warnings before opening a PR.
+- npm run dev levanta el servidor de desarrollo de Vite (http://localhost:5173) con recarga en caliente.
+- npm run build genera el bundle optimizado en dist listo para despliegue.
+- npm run build:dev construye en modo desarrollo para depurar el bundle localmente.
+- npm run preview sirve el contenido de dist; usalo para validar la salida de produccion.
+- npm run lint ejecuta ESLint (TypeScript + React Hooks). Resuelve advertencias antes de abrir un PR.
 
 ## Coding Style & Naming Conventions
-- Use TypeScript everywhere; prefer explicit prop interfaces and union types for admin vs seller flows.
-- Components are PascalCase (DashboardHeader), hooks are camelCase with use prefix, utility modules stay in lib.
-- Default to 2-space indentation, single quotes in TSX, and group imports by origin (external, @/, relative).
-- Tailwind utilities live on JSX nodes; compose long class lists with the cn helper in src/lib/utils.
+- Usa TypeScript en todo el codigo; prefiere props explicitas y tipos union para los flujos admin vs seller.
+- Componentes en PascalCase, hooks en camelCase con prefijo use, utilidades en lib.
+- Indentacion de 2 espacios, comillas simples en TSX y agrupa imports por origen (externo, @/, relativo).
+- Utiliza utilidades Tailwind directamente en JSX; para listas largas de clases usa el helper cn en src/lib/utils.
 
 ## Testing Guidelines
-- Automated tests are not yet wired; introduce Vitest + Testing Library alongside new features.
-- Co-locate specs as *.test.tsx beside components or in a __tests__ folder when scenarios are complex.
-- Cover both admin dashboard analytics and seller booking flows with realistic snorkel tour fixtures.
-- Always smoke-test 
-pm run dev for login, dashboard widgets, and sales entry before submitting changes.
+- Aun no hay pruebas automatizadas; introduce Vitest + Testing Library con nuevas funcionalidades.
+- Ubica los tests como *.test.tsx junto al componente o en un directorio __tests__ si el escenario es complejo.
+- Cubre tanto analytics del dashboard admin como flujos de reservas en ventas con fixtures realistas.
+- Siempre realiza una prueba rapida con npm run dev para login, widgets del dashboard y captura de ventas antes de subir cambios.
 
 ## Commit & Pull Request Guidelines
-- Follow concise, imperative commits (feat: add capacity widget, 
-efactor: simplify login state). Keep changes scoped.
-- Reference related issues, Lovable prompts, or context links in the body when applicable.
-- Pull requests need a summary, before/after visuals for UI adjustments, and noted env/config updates.
-- Confirm lint passes and preview build (
-pm run build & 
-pm run preview) before requesting review.
-
+- Sigue commits concisos en imperativo (feat: add capacity widget, refactor: simplify login state). Mantén el alcance acotado.
+- Referencia issues relacionados, prompts de Lovable o enlaces de contexto en el cuerpo cuando aplique.
+- Los PR deben incluir resumen, capturas antes/despues para ajustes UI y anotar cambios de config/env.
+- Ejecuta lint y build (npm run build & npm run preview) antes de solicitar revision.
