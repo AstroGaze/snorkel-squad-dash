@@ -13,57 +13,74 @@ interface SalesViewProps {
   onBack: () => void;
 }
 
+const calcularCarga = (clientes: number, capacidad: number) => {
+  if (capacidad <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return clientes / capacidad;
+};
+
 export const SalesView = ({ onBack }: SalesViewProps) => {
   const { data, isLoading, isError, error } = useOperatorsBundle();
   const createReservation = useCreateReservation();
   const { toast } = useToast();
 
   const [cantidadPersonas, setCantidadPersonas] = useState<number>(1);
-  const [operadorSeleccionado, setOperadorSeleccionado] = useState<string>('');
   const [horarioSeleccionado, setHorarioSeleccionado] = useState<string>('');
 
   const operadores = useMemo(() => data?.operators ?? [], [data?.operators]);
-  const operadorActual = useMemo(() => {
-    const id = Number.parseInt(operadorSeleccionado, 10);
-    if (Number.isNaN(id)) {
+
+  const operadoresElegibles = useMemo(() => {
+    if (!operadores.length || cantidadPersonas < 1) {
+      return [];
+    }
+
+    return operadores.filter((operador) => {
+      const capacidadLibre = operador.capacidadTotal - operador.clientesHoy;
+      return capacidadLibre >= cantidadPersonas;
+    });
+  }, [operadores, cantidadPersonas]);
+
+  const operadorAsignado = useMemo(() => {
+    if (!operadoresElegibles.length) {
       return null;
     }
-    return operadores.find((item) => item.id === id) ?? null;
-  }, [operadores, operadorSeleccionado]);
 
+    return operadoresElegibles.reduce((best, current) => {
+      const bestLoad = calcularCarga(best.clientesHoy, best.capacidadTotal);
+      const currentLoad = calcularCarga(current.clientesHoy, current.capacidadTotal);
 
-  const operadorRecomendado = useMemo(() => {
-    if (!operadores.length) {
+      if (currentLoad === bestLoad) {
+        const bestSlack = best.capacidadTotal - best.clientesHoy;
+        const currentSlack = current.capacidadTotal - current.clientesHoy;
+
+        if (currentSlack === bestSlack) {
+          return current.nombre.localeCompare(best.nombre) < 0 ? current : best;
+        }
+
+        return currentSlack > bestSlack ? current : best;
+      }
+
+      return currentLoad < bestLoad ? current : best;
+    }, operadoresElegibles[0]);
+  }, [operadoresElegibles]);
+
+  const capacidadDisponible = useMemo(() => {
+    if (!operadorAsignado) {
       return null;
     }
-    return operadores.reduce((best, current) => {
-      const currentUtilisation = current.capacidadTotal > 0 ? current.clientesHoy / current.capacidadTotal : 1;
-      const bestUtilisation = best.capacidadTotal > 0 ? best.clientesHoy / best.capacidadTotal : 1;
-      return currentUtilisation < bestUtilisation ? current : best;
-    }, operadores[0]);
-  }, [operadores]);
+    return Math.max(operadorAsignado.capacidadTotal - operadorAsignado.clientesHoy, 0);
+  }, [operadorAsignado]);
 
   useEffect(() => {
-    if (operadorActual?.horarios?.length) {
+    if (operadorAsignado?.horarios?.length) {
       setHorarioSeleccionado((prev) =>
-        operadorActual.horarios.includes(prev) ? prev : operadorActual.horarios[0]
+        operadorAsignado.horarios.includes(prev) ? prev : operadorAsignado.horarios[0]
       );
     } else {
       setHorarioSeleccionado('');
     }
-  }, [operadorActual]);
-
-  const capacidadDisponible = useMemo(() => {
-    if (!operadorActual) {
-      return null;
-    }
-
-    if (!operadorActual.capacidadTotal || operadorActual.capacidadTotal <= 0) {
-      return null;
-    }
-
-    return Math.max(operadorActual.capacidadTotal - operadorActual.clientesHoy, 0);
-  }, [operadorActual]);
+  }, [operadorAsignado]);
 
   const totalClientes = useMemo(() => operadores.reduce((acc, op) => acc + op.clientesHoy, 0), [operadores]);
   const capacidadTotal = useMemo(() => operadores.reduce((acc, op) => acc + op.capacidadTotal, 0), [operadores]);
@@ -73,60 +90,42 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!operadorSeleccionado || cantidadPersonas < 1) {
+    if (!operadorAsignado) {
       toast({
-        title: 'Datos incompletos',
-        description: 'Selecciona un operador y una cantidad valida de personas.',
-        variant: 'destructive'
+        title: 'Sin capacidad',
+        description: 'No hay operadores disponibles para esta cantidad.',
+        variant: 'destructive',
       });
       return;
     }
 
-    const operadorId = Number.parseInt(operadorSeleccionado, 10);
-    if (Number.isNaN(operadorId)) {
-      toast({
-        title: 'Operador invalido',
-        description: 'No pudimos identificar al operador seleccionado.',
-        variant: 'destructive'
-      });
+    if (capacidadDisponible !== null && capacidadDisponible < cantidadPersonas) {
+      const mensaje = capacidadDisponible === 0
+        ? `No hay lugares disponibles con ${operadorAsignado.nombre}.`
+        : `Solo quedan ${capacidadDisponible} lugares disponibles con ${operadorAsignado.nombre}.`;
+      toast({ title: 'Capacidad insuficiente', description: mensaje, variant: 'destructive' });
       return;
     }
 
-    const operador = operadorActual;
-
-    if (operador?.horarios.length && !horarioSeleccionado) {
+    if (operadorAsignado.horarios.length && !horarioSeleccionado) {
       toast({
         title: 'Selecciona un horario',
-        description: 'Este operador requiere elegir una hora de salida.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (operador && capacidadDisponible !== null && cantidadPersonas > capacidadDisponible) {
-      const mensaje = capacidadDisponible === 0
-        ? `No hay lugares disponibles con ${operador.nombre}.`
-        : `Solo quedan ${capacidadDisponible} lugares disponibles con ${operador.nombre}.`;
-      toast({
-        title: 'Capacidad insuficiente',
-        description: mensaje,
-        variant: 'destructive'
+        description: 'El operador asignado requiere elegir una hora de salida.',
+        variant: 'destructive',
       });
       return;
     }
 
     try {
       await createReservation.mutateAsync({
-        tourOperatorId: operadorId,
+        tourOperatorId: operadorAsignado.id,
         personas: cantidadPersonas,
-        horaSalida: horarioSeleccionado || null
+        horaSalida: horarioSeleccionado || null,
       });
 
       toast({
-        title: 'Reserva registrada',
-        description: operador
-          ? `${cantidadPersonas} ${cantidadPersonas === 1 ? 'persona' : 'personas'} asignadas a ${operador.nombre}.`
-          : 'El registro fue enviado a Supabase.'
+        title: 'Reserva asignada',
+        description: `${cantidadPersonas} ${cantidadPersonas === 1 ? 'persona' : 'personas'} asignadas a ${operadorAsignado.nombre}.`,
       });
 
       setCantidadPersonas(1);
@@ -171,7 +170,7 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Plus className="h-5 w-5 text-primary" />
-                <span>Nueva reserva</span>
+                <span>Registro de reserva</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -184,60 +183,53 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
                     min="1"
                     max={capacidadDisponible !== null ? Math.max(capacidadDisponible, 1) : 50}
                     value={cantidadPersonas}
-                    onChange={(event) => setCantidadPersonas(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
+                    onChange={(event) => {
+                      const parsed = Number.parseInt(event.target.value, 10);
+                      const safeValue = Math.max(1, Number.isNaN(parsed) ? 1 : parsed);
+                      setCantidadPersonas(capacidadDisponible !== null ? Math.min(safeValue, capacidadDisponible) : safeValue);
+                    }}
                     placeholder="Ingresa el numero de personas"
                     className="text-lg font-medium"
                     disabled={isLoading || isSubmitting || !operadores.length || capacidadDisponible === 0}
                   />
-                  {operadorActual && (
+                  {operadorAsignado ? (
                     <p className="text-sm text-muted-foreground">
-                      Capacidad disponible:{' '}
-                      {capacidadDisponible === null ? 'sin limite' : capacidadDisponible}
+                      Capacidad disponible con {operadorAsignado.nombre}: {capacidadDisponible}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Ajusta la cantidad para encontrar un operador con cupo.
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Asignar a operador</Label>
-                  <Select
-                    value={operadorSeleccionado}
-                    onValueChange={setOperadorSeleccionado}
-                    disabled={isLoading || isSubmitting || !operadores.length}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={isLoading ? 'Cargando operadores' : 'Selecciona un operador'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {operadores.map((operador) => (
-                        <SelectItem key={operador.id} value={operador.id.toString()}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{operador.nombre}</span>
-                            <div className="flex items-center space-x-2 ml-4">
-                              <Badge variant="outline" className="text-xs">
-                                {operador.clientesHoy}/{operador.capacidadTotal}
-                              </Badge>
-                              {operadorRecomendado && operador.id === operadorRecomendado.id && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Recomendado
-                                </Badge>
-                              )}
-                            </div>
+                  <Label>Operador asignado (Least Loaded)</Label>
+                  <Card className="border-dashed bg-gradient-surface">
+                    <CardContent className="py-4">
+                      {operadorAsignado ? (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-foreground">{operadorAsignado.nombre}</span>
+                            <Badge variant="secondary">Asignado automaticamente</Badge>
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {operadorRecomendado && (
-                    <p className="text-sm text-muted-foreground">
-                      Mejor disponibilidad: <strong>{operadorRecomendado.nombre}</strong>
-                    </p>
-                  )}
+                          <div className="text-sm text-muted-foreground">
+                            Carga actual: {operadorAsignado.clientesHoy}/{operadorAsignado.capacidadTotal}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No hay operadores con capacidad suficiente para {cantidadPersonas} personas.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
 
-                {operadorActual && (
+                {operadorAsignado && (
                   <div className="space-y-2">
                     <Label htmlFor="horario">Hora de salida</Label>
-                    {operadorActual.horarios.length ? (
+                    {operadorAsignado.horarios.length ? (
                       <Select
                         value={horarioSeleccionado}
                         onValueChange={setHorarioSeleccionado}
@@ -247,7 +239,7 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
                           <SelectValue placeholder="Selecciona un horario" />
                         </SelectTrigger>
                         <SelectContent>
-                          {operadorActual.horarios.map((hora) => (
+                          {operadorAsignado.horarios.map((hora) => (
                             <SelectItem key={hora} value={hora}>
                               {hora}
                             </SelectItem>
@@ -266,12 +258,18 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
                   type="submit"
                   className="w-full"
                   variant="ocean"
-                  disabled={isSubmitting || isLoading || !operadores.length || capacidadDisponible === 0}
+                  disabled={
+                    isSubmitting ||
+                    isLoading ||
+                    !operadores.length ||
+                    !operadorAsignado ||
+                    capacidadDisponible === 0
+                  }
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Procesando
+                      Procesando...
                     </>
                   ) : (
                     <>
@@ -305,17 +303,15 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
                     const porcentajeUso = operador.capacidadTotal > 0
                       ? (operador.clientesHoy / operador.capacidadTotal) * 100
                       : 0;
-                    const isRecommended = operadorRecomendado?.id === operador.id;
+                    const isAsignado = operadorAsignado?.id === operador.id;
 
                     return (
                       <div key={operador.id} className="space-y-2">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center space-x-2">
                             <span className="font-medium text-foreground">{operador.nombre}</span>
-                            {isRecommended && (
-                              <Badge variant="secondary" className="text-xs">
-                                Recomendado
-                              </Badge>
+                            {isAsignado && (
+                              <Badge variant="secondary" className="text-xs">Asignado</Badge>
                             )}
                           </div>
                           <div className="text-sm text-muted-foreground">
@@ -325,7 +321,7 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
                         <div className="w-full bg-muted rounded-full h-2">
                           <div
                             className={`h-2 rounded-full transition-all duration-500 ${
-                              isRecommended ? 'bg-gradient-coral' : 'bg-gradient-ocean'
+                              isAsignado ? 'bg-gradient-coral' : 'bg-gradient-ocean'
                             }`}
                             style={{ width: `${Math.min(porcentajeUso, 100)}%` }}
                           />

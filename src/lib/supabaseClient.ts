@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -23,11 +23,10 @@ export const getSupabaseClient = (): SupabaseClient => {
 };
 
 export type AppRole = 'admin' | 'seller';
-
-export const getRoleFromMetadata = (
-  metadata: Record<string, unknown> | null | undefined
-): AppRole | null => {
-  const role = metadata && typeof metadata.role === 'string' ? metadata.role : null;
-  return role === 'admin' || role === 'seller' ? role : null;
+export const getRoleFromUser = (user: User | null | undefined): AppRole | null => {
+  const candidate = typeof user?.app_metadata?.role === 'string' ? user.app_metadata.role
+    : typeof user?.user_metadata?.role === 'string' ? user.user_metadata.role
+      : null;
+  return candidate === 'admin' || candidate === 'seller' ? candidate : null;
 };
 

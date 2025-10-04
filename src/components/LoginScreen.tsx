@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Waves, Fish, User, Lock } from 'lucide-react';
 import snorkelHero from '@/assets/snorkel-hero.jpg';
 import { useToast } from '@/hooks/use-toast';
-import { getSupabaseClient, getRoleFromMetadata, type AppRole } from '@/lib/supabaseClient';
+import { getSupabaseClient, getRoleFromUser, type AppRole } from '@/lib/supabaseClient';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -56,6 +56,21 @@ export const LoginScreen = () => {
     setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
   };
 
+  const syncRoleToAppMetadata = async (role: AppRole) => {
+    const { error: functionError } = await supabase.functions.invoke('set-role', {
+      body: { role },
+    });
+
+    if (functionError) {
+      throw new Error(functionError.message ?? 'No se pudo sincronizar el rol.');
+    }
+  };
+
+  const ensureRoleSynced = async (role: AppRole, hasRoleInAppMetadata: boolean) => {
+    if (!hasRoleInAppMetadata) {
+      await syncRoleToAppMetadata(role);
+    }
+  };
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setFormError(null);
@@ -75,7 +90,7 @@ export const LoginScreen = () => {
           throw error;
         }
 
-        const role = getRoleFromMetadata(data.user?.user_metadata);
+        const role = getRoleFromUser(data.user);
 
         if (!role) {
           await supabase.auth.signOut();
@@ -87,22 +102,38 @@ export const LoginScreen = () => {
           throw new Error('El rol seleccionado no coincide con el rol de tu cuenta.');
         }
 
+        const appRole = typeof data.user?.app_metadata?.role === 'string' ? data.user.app_metadata.role : null;
+
+        try {
+          await ensureRoleSynced(role, appRole === role);
+        } catch (syncError) {
+          console.warn('No se pudo sincronizar el rol con app_metadata.', syncError);
+        }
+
         toast({
           title: 'Bienvenido',
           description: `Sesion iniciada como ${roleLabel[role]}.`,
         });
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: { role: userType },
-          },
         });
 
         if (error) {
           throw error;
         }
+
+        if (data.session?.access_token) {
+          try {
+            await syncRoleToAppMetadata(userType);
+          } catch (syncError) {
+            console.warn('No se pudo registrar el rol en app_metadata durante el alta.', syncError);
+          }
+        }
+
+        // Para flujos con confirmacion de correo no hay sesion hasta que el usuario verifica el email.
+        // El rol se sincronizara en el primer inicio de sesion exitoso.
 
         toast({
           title: 'Cuenta creada',
@@ -258,4 +289,3 @@ export const LoginScreen = () => {
     </div>
   );
 };
-

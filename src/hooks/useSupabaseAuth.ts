@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
-import { getSupabaseClient, getRoleFromMetadata, type AppRole } from '@/lib/supabaseClient';
+import { getSupabaseClient, getRoleFromUser, type AppRole } from '@/lib/supabaseClient';
 
 type AuthState = {
   session: Session | null;
@@ -9,7 +9,7 @@ type AuthState = {
 };
 
 const deriveRole = (session: Session | null): AppRole | null =>
-  getRoleFromMetadata(session?.user?.user_metadata);
+  getRoleFromUser(session?.user);
 
 export const useSupabaseAuth = () => {
   const [supabase] = useState<SupabaseClient>(() => getSupabaseClient());
