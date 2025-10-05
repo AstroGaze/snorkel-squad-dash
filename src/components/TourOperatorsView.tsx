@@ -30,7 +30,7 @@ const getEstadoColor = (estado: string) => {
       return 'bg-gradient-ocean text-primary-foreground';
     case 'Mantenimiento':
       return 'bg-gradient-coral text-secondary-foreground';
-    case 'ReparaciÃ³n':
+    case 'Reparación':
       return 'bg-destructive text-destructive-foreground';
     default:
       return 'bg-muted text-muted-foreground';
@@ -130,7 +130,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
               <div className="p-2 rounded-lg bg-gradient-ocean">
                 <Ship className="h-6 w-6 text-primary-foreground" />
               </div>
-              <h1 className="text-xl font-bold text-foreground">Operadores turÃ­sticos</h1>
+              <h1 className="text-xl font-bold text-foreground">Operadores turísticos</h1>
             </div>
             <Button onClick={handleCreate} variant="ocean">
               <Plus className="h-4 w-4 mr-2" />
@@ -145,7 +145,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
           <Card className="border-destructive/50">
             <CardContent className="py-6">
               <p className="text-destructive">
-                OcurriÃ³ un problema al cargar los operadores: {error?.message ?? 'Error desconocido'}
+                Ocurrió un problema al cargar los operadores: {error?.message ?? 'Error desconocido'}
               </p>
             </CardContent>
           </Card>
@@ -157,7 +157,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
               <CardTitle>Total de operadores</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-foreground">{isLoading ? 'Â—' : operators.length}</p>
+              <p className="text-3xl font-bold text-foreground">{isLoading ? '—' : operators.length}</p>
             </CardContent>
           </Card>
           <Card className="shadow-ocean">
@@ -165,7 +165,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
               <CardTitle>Capacidad combinada</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-foreground">{isLoading ? 'Â—' : totalCapacity}</p>
+              <p className="text-3xl font-bold text-foreground">{isLoading ? '—' : totalCapacity}</p>
             </CardContent>
           </Card>
           <Card className="shadow-ocean">
@@ -173,7 +173,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
               <CardTitle>Embarcaciones registradas</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-foreground">{isLoading ? 'Â—' : totalBoats}</p>
+              <p className="text-3xl font-bold text-foreground">{isLoading ? '—' : totalBoats}</p>
             </CardContent>
           </Card>
         </section>
@@ -190,7 +190,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
             {operators.length === 0 && (
               <Card className="shadow-ocean">
                 <CardContent className="py-12 text-center text-muted-foreground">
-                  AÃºn no hay operadores registrados. Utiliza Â“Agregar operadorÂ” para crear el primero.
+                  Aún no hay operadores registrados. Utiliza "Agregar operador" para crear el primero.
                 </CardContent>
               </Card>
             )}
@@ -209,7 +209,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
                       )}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      {operador.horarios.length} salidas Â· {operador.botes.length} embarcaciones Â· {operador.personal} personas en equipo
+                      {operador.horarios.length} salidas · {operador.botes.length} embarcaciones · {operador.personal} personas en equipo
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -234,9 +234,9 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Â¿Eliminar tour operador?</AlertDialogTitle>
+                          <AlertDialogTitle>¿Eliminar tour operador?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Esta acciÃ³n no se puede deshacer. Se eliminarÃ¡ permanentemente "{operador.nombre}" y sus embarcaciones asociadas.
+                            Esta acción no se puede deshacer. Se eliminará permanentemente "{operador.nombre}" y sus embarcaciones asociadas.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -258,7 +258,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gradient-surface rounded-lg border border-border">
                     <div className="flex items-center space-x-2">
                       <Phone className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-foreground">{operador.contacto.telefono || 'Sin telÃ©fono'}</span>
+                      <span className="text-sm text-foreground">{operador.contacto.telefono || 'Sin teléfono'}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Mail className="h-4 w-4 text-primary" />
@@ -266,7 +266,7 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-foreground">{operador.contacto.direccion || 'Sin direcciÃ³n'}</span>
+                      <span className="text-sm text-foreground">{operador.contacto.direccion || 'Sin dirección'}</span>
                     </div>
                   </div>
 
@@ -340,5 +340,8 @@ export const TourOperatorsView = ({ onBack }: TourOperatorsViewProps) => {
     </div>
   );
 };
+
+
+
 
 

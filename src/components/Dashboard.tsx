@@ -116,7 +116,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                 Gestionar operadores
               </Button>
               <Button variant="outline" onClick={onLogout}>
-                Cerrar sesiÃ³n
+                Cerrar sesión
               </Button>
             </div>
           </div>
@@ -137,7 +137,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
         <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="shadow-ocean">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Clientes del dÃ­a</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Clientes del día</CardTitle>
               <Users className="h-5 w-5 text-secondary" />
             </CardHeader>
             <CardContent>
@@ -170,7 +170,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
 
           <Card className="shadow-ocean">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">PrÃ³ximas salidas</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Próximas salidas</CardTitle>
               <Anchor className="h-5 w-5 text-accent-foreground" />
             </CardHeader>
             <CardContent>
@@ -185,7 +185,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Users className="h-5 w-5 text-secondary" />
-                <span>DistribuciÃ³n de clientes en tiempo real</span>
+                <span>Distribución de clientes en tiempo real</span>
                 <div className="ml-auto flex items-center space-x-2">
                   <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
                   <span className="text-sm text-muted-foreground">En vivo</span>
@@ -194,10 +194,10 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
             </CardHeader>
             <CardContent>
               {distribution.length === 0 ? (
-                <p className="text-muted-foreground">AÃºn no hay clientes registrados para hoy.</p>
+                <p className="text-muted-foreground">Aún no hay clientes registrados para hoy.</p>
               ) : (
                 <div className="space-y-4 mb-6">
-                  <h4 className="font-semibold text-foreground mb-3">DistribuciÃ³n por tour operador</h4>
+                  <h4 className="font-semibold text-foreground mb-3">Distribución por tour operador</h4>
                   {distribution.map((operador) => (
                     <div key={operador.id} className="space-y-2">
                       <div className="flex justify-between items-center">
@@ -224,7 +224,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                     <div className="p-2 rounded-lg bg-gradient-ocean mr-3">
                       <Calendar className="h-4 w-4 text-primary-foreground" />
                     </div>
-                    Ãšltimas reservas
+                    Últimas reservas
                   </h4>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
@@ -302,7 +302,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
-                <span>ParticipaciÃ³n por operador</span>
+                <span>Participación por operador</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="h-72">
@@ -329,12 +329,12 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <DollarSign className="h-5 w-5 text-secondary" />
-                <span>PrÃ³ximas salidas</span>
+                <span>Próximas salidas</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {upcomingDepartures.length === 0 ? (
-                <p className="text-muted-foreground">AÃºn no hay salidas programadas.</p>
+                <p className="text-muted-foreground">Aún no hay salidas programadas.</p>
               ) : (
                 upcomingDepartures.map((salida, index) => (
                   <div key={`${salida.operador}-${index}`} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
@@ -372,7 +372,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                       <div>
                         <p className="font-semibold text-foreground">{operator.nombre}</p>
                         <p className="text-sm text-muted-foreground">
-                          Capacidad total {operator.capacidadTotal} Â· Disponibles {disponible}
+                          Capacidad total {operator.capacidadTotal} · Disponibles {disponible}
                         </p>
                       </div>
                       <Badge variant={disponible > 0 ? 'secondary' : 'destructive'}>
@@ -420,5 +420,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
     </div>
   );
 };
+
+
 
 
