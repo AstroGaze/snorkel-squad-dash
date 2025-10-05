@@ -1,14 +1,13 @@
+﻿import { api } from '../../convex/_generated/api';
+import { getConvexHttpClient } from './convexClient';
+
 export type AppRole = 'admin' | 'seller';
 
-interface StoredUser {
-  email: string;
-  password: string;
-  role: AppRole;
-}
-
 export interface AuthSession {
+  token: string;
   email: string;
   role: AppRole;
+  expiresAt: number;
 }
 
 interface SignUpPayload {
@@ -17,87 +16,47 @@ interface SignUpPayload {
   role: AppRole;
 }
 
-const USERS_KEY = 'aquareservas::users';
 const SESSION_KEY = 'aquareservas::session';
-
-const DEFAULT_USERS: StoredUser[] = [
-  { email: 'admin@aquareservas.com', password: 'admin123', role: 'admin' },
-  { email: 'ventas@aquareservas.com', password: 'ventas123', role: 'seller' }
-];
 
 const hasWindow = typeof window !== 'undefined';
 const hasStorage = hasWindow && typeof window.localStorage !== 'undefined';
 
-let memoryUsers: StoredUser[] | null = null;
 let memorySession: AuthSession | null = null;
 
-const normaliseEmail = (value: string) => value.trim().toLowerCase();
-
-const cloneUsers = (users: StoredUser[]) => users.map((user) => ({ ...user }));
-
-const readUsers = (): StoredUser[] => {
-  if (hasStorage) {
-    try {
-      const raw = window.localStorage.getItem(USERS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as StoredUser[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return cloneUsers(parsed);
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to parse stored users', error);
-    }
-  }
-
-  if (memoryUsers) {
-    return cloneUsers(memoryUsers);
-  }
-
-  const seeded = cloneUsers(DEFAULT_USERS);
-  memoryUsers = seeded;
-
-  if (hasStorage) {
-    try {
-      window.localStorage.setItem(USERS_KEY, JSON.stringify(seeded));
-    } catch (error) {
-      console.warn('Failed to persist default users', error);
-    }
-  }
-
-  return cloneUsers(seeded);
-};
-
-const writeUsers = (users: StoredUser[]) => {
-  const snapshot = cloneUsers(users);
-  memoryUsers = snapshot;
-
-  if (hasStorage) {
-    try {
-      window.localStorage.setItem(USERS_KEY, JSON.stringify(snapshot));
-    } catch (error) {
-      console.warn('Failed to persist users', error);
-    }
-  }
-};
-
 const readSession = (): AuthSession | null => {
-  if (hasStorage) {
-    try {
-      const raw = window.localStorage.getItem(SESSION_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as AuthSession;
-        if (parsed && typeof parsed.email === 'string' && (parsed.role === 'admin' || parsed.role === 'seller')) {
-          return { email: parsed.email, role: parsed.role };
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to parse stored session', error);
-    }
-  }
-
   if (memorySession) {
     return { ...memorySession };
+  }
+
+  if (!hasStorage) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(SESSION_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<AuthSession>;
+    if (
+      parsed &&
+      typeof parsed.token === 'string' &&
+      typeof parsed.email === 'string' &&
+      (parsed.role === 'admin' || parsed.role === 'seller') &&
+      typeof parsed.expiresAt === 'number'
+    ) {
+      const session: AuthSession = {
+        token: parsed.token,
+        email: parsed.email,
+        role: parsed.role,
+        expiresAt: parsed.expiresAt,
+      };
+      memorySession = { ...session };
+      return { ...session };
+    }
+  } catch (error) {
+    console.warn('Failed to parse stored session', error);
   }
 
   return null;
@@ -125,55 +84,97 @@ const emitAuthChange = () => {
   authEvents?.dispatchEvent(new Event('change'));
 };
 
+const persistAndBroadcast = (session: AuthSession | null) => {
+  writeSession(session);
+  emitAuthChange();
+};
+
 export const getCurrentSession = (): AuthSession | null => {
   return readSession();
 };
 
+export const refreshSession = async (): Promise<AuthSession | null> => {
+  const stored = readSession();
+  if (!stored) {
+    return null;
+  }
+
+  try {
+    const client = getConvexHttpClient();
+    const next = await client.query(api.auth.getSession, { token: stored.token });
+
+    if (!next) {
+      persistAndBroadcast(null);
+      return null;
+    }
+
+    const hydrated: AuthSession = {
+      token: stored.token,
+      email: next.email,
+      role: next.role,
+      expiresAt: next.expiresAt,
+    };
+
+    persistAndBroadcast(hydrated);
+    return hydrated;
+  } catch (error) {
+    console.warn('Fallo al refrescar la sesion', error);
+    return stored;
+  }
+};
+
 export const signIn = async (email: string, password: string, expectedRole?: AppRole) => {
-  const normalisedEmail = normaliseEmail(email);
-  const users = readUsers();
-  const user = users.find((candidate) => candidate.email === normalisedEmail);
+  const client = getConvexHttpClient();
 
-  if (!user) {
-    throw new Error('No existe una cuenta con ese correo.');
-  }
+  const session = await client.mutation(api.auth.signIn, {
+    email,
+    password,
+    expectedRole,
+  });
 
-  if (user.password !== password) {
-    throw new Error('La contrasena es incorrecta.');
-  }
+  const typedSession: AuthSession = {
+    token: session.token,
+    email: session.email,
+    role: session.role,
+    expiresAt: session.expiresAt,
+  };
 
-  if (expectedRole && user.role !== expectedRole) {
-    throw new Error('El rol seleccionado no coincide con tu cuenta.');
-  }
-
-  const session: AuthSession = { email: user.email, role: user.role };
-  writeSession(session);
-  emitAuthChange();
-
-  return session;
+  persistAndBroadcast(typedSession);
+  return typedSession;
 };
 
 export const signUp = async ({ email, password, role }: SignUpPayload) => {
-  const normalisedEmail = normaliseEmail(email);
-  const users = readUsers();
+  const client = getConvexHttpClient();
+  const session = await client.mutation(api.auth.signUp, {
+    email,
+    password,
+    role,
+  });
 
-  if (users.some((user) => user.email === normalisedEmail)) {
-    throw new Error('Ya existe una cuenta con ese correo.');
-  }
+  const typedSession: AuthSession = {
+    token: session.token,
+    email: session.email,
+    role: session.role,
+    expiresAt: session.expiresAt,
+  };
 
-  const nextUsers = [...users, { email: normalisedEmail, password, role }];
-  writeUsers(nextUsers);
-
-  const session: AuthSession = { email: normalisedEmail, role };
-  writeSession(session);
-  emitAuthChange();
-
-  return session;
+  persistAndBroadcast(typedSession);
+  return typedSession;
 };
 
 export const signOut = async () => {
-  writeSession(null);
-  emitAuthChange();
+  const session = readSession();
+
+  try {
+    if (session) {
+      const client = getConvexHttpClient();
+      await client.mutation(api.auth.signOut, { token: session.token });
+    }
+  } catch (error) {
+    console.warn('Fallo al cerrar sesion remoto', error);
+  } finally {
+    persistAndBroadcast(null);
+  }
 };
 
 export const onAuthChange = (listener: (session: AuthSession | null) => void) => {
@@ -188,3 +189,5 @@ export const onAuthChange = (listener: (session: AuthSession | null) => void) =>
     authEvents.removeEventListener('change', handler);
   };
 };
+
+

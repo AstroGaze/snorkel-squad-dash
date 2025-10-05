@@ -13,6 +13,8 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as auth from "../auth.js";
+import type * as operators from "../operators.js";
 import type * as placeholder from "../placeholder.js";
 
 /**
@@ -24,6 +26,8 @@ import type * as placeholder from "../placeholder.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
+  operators: typeof operators;
   placeholder: typeof placeholder;
 }>;
 export declare const api: FilterApi<

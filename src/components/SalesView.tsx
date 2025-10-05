@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,7 +120,7 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
       await createReservation.mutateAsync({
         tourOperatorId: operadorAsignado.id,
         personas: cantidadPersonas,
-        horaSalida: horarioSeleccionado || null,
+        horaSalida: horarioSeleccionado || undefined,
       });
 
       toast({
@@ -352,3 +352,4 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
     </div>
   );
 };
+
