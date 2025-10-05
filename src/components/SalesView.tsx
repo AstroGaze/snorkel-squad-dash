@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,7 +120,7 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
       await createReservation.mutateAsync({
         tourOperatorId: operadorAsignado.id,
         personas: cantidadPersonas,
-        horaSalida: horarioSeleccionado || null,
+        horaSalida: horarioSeleccionado || undefined,
       });
 
       toast({
@@ -293,7 +293,7 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
               {isLoading ? (
                 <div className="py-8 flex flex-col items-center space-y-3 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Sincronizando con Supabase...</span>
+                  <span>Sincronizando datos...</span>
                 </div>
               ) : operadores.length === 0 ? (
                 <p className="text-muted-foreground">No hay operadores disponibles para asignar reservas.</p>
@@ -352,3 +352,4 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
     </div>
   );
 };
+

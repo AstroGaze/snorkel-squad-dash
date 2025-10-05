@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Plus, Minus, X } from 'lucide-react';
 import type { OperatorBoat, TourOperatorInput } from '@/lib/operators';
 
 type TourOperatorFormData = TourOperatorInput;
-type BoatForm = OperatorBoat & { id?: number };
+type BoatForm = OperatorBoat;
 
 const defaultFormData: TourOperatorFormData = {
   nombre: '',
@@ -219,7 +219,7 @@ export const AddTourOperatorForm = ({
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="telefono">Teléfono*</Label>
+                <Label htmlFor="telefono">TelÃ©fono*</Label>
                 <Input
                   id="telefono"
                   value={formData.contacto.telefono}
@@ -244,7 +244,7 @@ export const AddTourOperatorForm = ({
                 />
               </div>
               <div>
-                <Label htmlFor="direccion">Ubicación</Label>
+                <Label htmlFor="direccion">UbicaciÃ³n</Label>
                 <Input
                   id="direccion"
                   value={formData.contacto.direccion}
@@ -252,7 +252,7 @@ export const AddTourOperatorForm = ({
                     ...prev,
                     contacto: { ...prev.contacto, direccion: event.target.value }
                   }))}
-                  placeholder="Marina Puerto Juárez, Cancún"
+                  placeholder="Marina Puerto JuÃ¡rez, CancÃºn"
                 />
               </div>
             </CardContent>
@@ -265,7 +265,7 @@ export const AddTourOperatorForm = ({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 bg-gradient-surface rounded-lg border border-border">
-                <h4 className="font-medium mb-3">Registrar embarcación</h4>
+                <h4 className="font-medium mb-3">Registrar embarcaciÃ³n</h4>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <Input
                     placeholder="Nombre del bote"
@@ -291,7 +291,7 @@ export const AddTourOperatorForm = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Lancha">Lancha</SelectItem>
-                      <SelectItem value="Catamaran">Catamarán</SelectItem>
+                      <SelectItem value="Catamaran">CatamarÃ¡n</SelectItem>
                       <SelectItem value="Yate">Yate</SelectItem>
                     </SelectContent>
                   </Select>
@@ -380,3 +380,4 @@ export const AddTourOperatorForm = ({
     </div>
   );
 };
+

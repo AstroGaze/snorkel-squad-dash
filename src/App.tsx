@@ -1,15 +1,16 @@
-import { Toaster } from "@/components/ui/toaster";
+﻿import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ConvexProvider } from "convex/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { getConvexReactClient } from "@/lib/convexClient";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const convexClient = getConvexReactClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <ConvexProvider client={convexClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -21,7 +22,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
+  </ConvexProvider>
 );
 
 export default App;

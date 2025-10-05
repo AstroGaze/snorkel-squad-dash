@@ -11,7 +11,25 @@ import {
 import { getSupabaseClient } from '@/lib/supabaseClient';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-export const OPERATORS_QUERY_KEY = ['operators-bundle'] as const;
+type MutationFn<TArgs, TResult> = (args: TArgs) => Promise<TResult>;
+
+const usePendingMutation = <TArgs, TResult>(mutateFn: MutationFn<TArgs, TResult>) => {
+  const [isPending, setIsPending] = useState(false);
+
+  const mutateAsync = useCallback(
+    async (args: TArgs) => {
+      setIsPending(true);
+      try {
+        return await mutateFn(args);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [mutateFn],
+  );
+
+  return { mutateAsync, isPending };
+};
 
 const REALTIME_TABLES = [
   'reservations',
@@ -150,21 +168,20 @@ export const useDeleteTourOperator = () => {
 };
 
 interface CreateReservationArgs {
-  tourOperatorId: number;
+  tourOperatorId: TourOperatorId;
   personas: number;
   tipo?: string;
-  horaSalida?: string | null;
+  horaSalida?: string;
 }
 
 export const useCreateReservation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: CreateReservationArgs) => createReservation({
-      tourOperatorId: input.tourOperatorId,
+  const mutation = useMutation(api.operators.createReservation);
+  return usePendingMutation<CreateReservationArgs, { id: ReservationId }>((input) =>
+    mutation({
+      operadorId: input.tourOperatorId,
       personas: input.personas,
       tipo: input.tipo,
-      horaSalida: input.horaSalida ?? null
+      horaSalida: input.horaSalida,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: OPERATORS_QUERY_KEY });
