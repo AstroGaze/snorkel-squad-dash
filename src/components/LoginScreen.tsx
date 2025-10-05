@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +27,7 @@ const copy: Record<AuthMode, ModeCopy> = {
   },
   signup: {
     title: 'Crear cuenta',
-    subtitle: 'Registra un nuevo perfil de operador',
+    subtitle: 'Registra un nuevo perfil de vendedor (los administradores se crean en Supabase)',
     button: 'Registrarme',
     helper: 'Ya tienes cuenta?',
     switchAction: 'Inicia sesion',
@@ -50,6 +50,12 @@ export const LoginScreen = () => {
 
   const modeCopy = useMemo(() => copy[mode], [mode]);
 
+  useEffect(() => {
+    if (mode === 'signup') {
+      setUserType('seller');
+    }
+  }, [mode]);
+
   const toggleMode = () => {
     setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'));
   };
@@ -65,13 +71,72 @@ export const LoginScreen = () => {
 
     setIsLoading(true);
 
+    const selectedRole: AppRole = mode === 'signup' ? 'seller' : userType;
+
+    if (mode === 'signup' && selectedRole !== 'seller') {
+      setIsLoading(false);
+      setFormError('Solo se pueden registrar cuentas de vendedor.');
+      return;
+    }
+
     try {
       if (mode === 'signin') {
-        await signIn(email, password, userType);
-        toast({ title: 'Bienvenido', description: `Sesion iniciada como ${roleLabel[userType]}.` });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          throw error;
+        }
+
+        const role = getRoleFromUser(data.user);
+
+        if (!role) {
+          await supabase.auth.signOut();
+          throw new Error('Tu cuenta no tiene un rol asignado. Contacta al administrador.');
+        }
+
+        if (role !== selectedRole) {
+          await supabase.auth.signOut();
+          throw new Error('El rol seleccionado no coincide con el rol de tu cuenta.');
+        }
+
+        const appRole = typeof data.user?.app_metadata?.role === 'string' ? data.user.app_metadata.role : null;
+
+        try {
+          await ensureRoleSynced(role, appRole === role);
+        } catch (syncError) {
+          console.warn('No se pudo sincronizar el rol con app_metadata.', syncError);
+        }
+
+        toast({
+          title: 'Bienvenido',
+          description: `Sesion iniciada como ${roleLabel[role]}.`,
+        });
       } else {
-        await signUp({ email, password, role: userType });
-        toast({ title: 'Cuenta creada', description: `Listo, entraste como ${roleLabel[userType]}.` });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data.session?.access_token) {
+          try {
+            await syncRoleToAppMetadata(selectedRole);
+          } catch (syncError) {
+            console.warn('No se pudo registrar el rol en app_metadata durante el alta.', syncError);
+          }
+        }
+
+        // Para flujos con confirmacion de correo no hay sesion hasta que el usuario verifica el email.
+        // El rol se sincronizara en el primer inicio de sesion exitoso.
+
+        toast({
+          title: 'Cuenta creada',
+          description: 'Revisa tu correo para confirmar la cuenta si es necesario.',
+        });
+        setMode('signin');
       }
 
       setPassword('');
@@ -134,8 +199,8 @@ export const LoginScreen = () => {
                     type='button'
                     variant={userType === roleOption ? 'ocean' : 'outline'}
                     onClick={() => setUserType(roleOption)}
-                    className='w-full'
-                    disabled={isLoading}
+                    className="w-full"
+                    disabled={isLoading || (mode === 'signup' && roleOption === 'admin')}
                   >
                     {roleOption === 'seller' ? (
                       <User className='h-4 w-4 mr-2' />
@@ -146,6 +211,11 @@ export const LoginScreen = () => {
                   </Button>
                 ))}
               </div>
+              {mode === 'signup' ? (
+                <p className="text-xs text-muted-foreground">
+                  Solo el personal administrador puede crear cuentas de administrador directamente en Supabase.
+                </p>
+              ) : null}
             </div>
 
             <form onSubmit={handleSubmit} className='space-y-6'>
