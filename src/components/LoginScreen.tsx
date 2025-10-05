@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+﻿import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +27,7 @@ const copy: Record<AuthMode, ModeCopy> = {
   },
   signup: {
     title: 'Crear cuenta',
-    subtitle: 'Registra un nuevo perfil de vendedor (los administradores se crean en Supabase)',
+    subtitle: 'Registra un nuevo perfil de vendedor',
     button: 'Registrarme',
     helper: 'Ya tienes cuenta?',
     switchAction: 'Inicia sesion',
@@ -81,61 +81,11 @@ export const LoginScreen = () => {
 
     try {
       if (mode === 'signin') {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-        if (error) {
-          throw error;
-        }
-
-        const role = getRoleFromUser(data.user);
-
-        if (!role) {
-          await supabase.auth.signOut();
-          throw new Error('Tu cuenta no tiene un rol asignado. Contacta al administrador.');
-        }
-
-        if (role !== selectedRole) {
-          await supabase.auth.signOut();
-          throw new Error('El rol seleccionado no coincide con el rol de tu cuenta.');
-        }
-
-        const appRole = typeof data.user?.app_metadata?.role === 'string' ? data.user.app_metadata.role : null;
-
-        try {
-          await ensureRoleSynced(role, appRole === role);
-        } catch (syncError) {
-          console.warn('No se pudo sincronizar el rol con app_metadata.', syncError);
-        }
-
-        toast({
-          title: 'Bienvenido',
-          description: `Sesion iniciada como ${roleLabel[role]}.`,
-        });
+        await signIn(email, password, selectedRole);
+        toast({ title: 'Bienvenido', description: `Sesion iniciada como ${roleLabel[selectedRole]}.` });
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        if (data.session?.access_token) {
-          try {
-            await syncRoleToAppMetadata(selectedRole);
-          } catch (syncError) {
-            console.warn('No se pudo registrar el rol en app_metadata durante el alta.', syncError);
-          }
-        }
-
-        // Para flujos con confirmacion de correo no hay sesion hasta que el usuario verifica el email.
-        // El rol se sincronizara en el primer inicio de sesion exitoso.
-
-        toast({
-          title: 'Cuenta creada',
-          description: 'Revisa tu correo para confirmar la cuenta si es necesario.',
-        });
+        await signUp({ email, password, role: selectedRole });
+        toast({ title: 'Cuenta creada', description: `Listo, entraste como ${roleLabel[selectedRole]}.` });
         setMode('signin');
       }
 
@@ -213,7 +163,7 @@ export const LoginScreen = () => {
               </div>
               {mode === 'signup' ? (
                 <p className="text-xs text-muted-foreground">
-                  Solo el personal administrador puede crear cuentas de administrador directamente en Supabase.
+                  Los perfiles de administrador se asignan desde el panel de control.
                 </p>
               ) : null}
             </div>
@@ -285,3 +235,8 @@ export const LoginScreen = () => {
     </div>
   );
 };
+
+
+
+
+
