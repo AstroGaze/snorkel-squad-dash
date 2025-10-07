@@ -2,6 +2,7 @@
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { OperatorsBundle, ReservationId, TourOperatorId, TourOperatorInput } from '@/lib/operators';
+import { getCurrentSession } from '@/lib/auth';
 
 type MutationFn<TArgs, TResult> = (args: TArgs) => Promise<TResult>;
 
@@ -49,18 +50,24 @@ interface CreateReservationArgs {
   personas: number;
   tipo?: string;
   horaSalida?: string;
+  sessionToken?: string;
 }
 
 export const useCreateReservation = () => {
   const mutation = useMutation(api.operators.createReservation);
-  return usePendingMutation<CreateReservationArgs, { id: ReservationId }>((input) =>
-    mutation({
+  return usePendingMutation<CreateReservationArgs, { id: ReservationId }>(async (input) => {
+    const session = getCurrentSession();
+    const token = input.sessionToken ?? session?.token;
+
+    return mutation({
       operadorId: input.tourOperatorId,
       personas: input.personas,
       tipo: input.tipo,
       horaSalida: input.horaSalida,
-    }),
-  );
+      sessionToken: token,
+    });
+  });
 };
+
 
 export type { TourOperatorInput } from '@/lib/operators';

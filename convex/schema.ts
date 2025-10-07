@@ -48,6 +48,7 @@ export default defineSchema({
     timestamp: v.string(),
     horaSalida: v.optional(v.string()),
     dayKey: v.number(),
+    creadoPorId: v.optional(v.id('users')),
   })
     .index('by_operador', ['operadorId'])
     .index('by_day', ['dayKey']),

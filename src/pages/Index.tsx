@@ -27,7 +27,7 @@ const Index = () => {
   return role === 'admin' ? (
     <Dashboard onLogout={handleLogout} />
   ) : (
-    <SalesView onBack={handleLogout} />
+    <SalesView onBack={handleLogout} sessionToken={session.token} />
   );
 };
 

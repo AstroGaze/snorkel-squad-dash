@@ -1,9 +1,11 @@
 ﻿import type { Id } from '../../convex/_generated/dataModel';
 import { api } from '../../convex/_generated/api';
 import { getConvexHttpClient } from './convexClient';
+import { getCurrentSession } from './auth';
 
 export type TourOperatorId = Id<'operators'>;
 export type ReservationId = Id<'reservations'>;
+export type UserId = Id<'users'>;
 
 export interface OperatorBoat {
   nombre: string;
@@ -28,6 +30,12 @@ export interface TourOperator {
   clientesHoy: number;
 }
 
+export interface ReservationCreator {
+  id: UserId;
+  email: string;
+  role: 'admin' | 'seller';
+}
+
 export interface ReservationRecord {
   id: ReservationId;
   operadorId: TourOperatorId;
@@ -36,6 +44,7 @@ export interface ReservationRecord {
   tipo: string;
   timestamp: string;
   horaSalida: string | null;
+  registradoPor: ReservationCreator | null;
 }
 
 export interface OperatorsBundle {
@@ -63,6 +72,7 @@ export interface ReservationInput {
   personas: number;
   tipo?: string;
   horaSalida?: string;
+  sessionToken?: string;
 }
 
 const client = () => getConvexHttpClient();
@@ -80,11 +90,14 @@ export const deleteTourOperator = async (operatorId: TourOperatorId) => {
 };
 
 export const createReservation = async (input: ReservationInput) => {
+  const session = getCurrentSession();
+
   const payload = {
     operadorId: input.tourOperatorId,
     personas: input.personas,
     tipo: input.tipo,
     horaSalida: input.horaSalida,
+    sessionToken: input.sessionToken ?? session?.token,
   } as const;
 
   return client().mutation(api.operators.createReservation, payload);

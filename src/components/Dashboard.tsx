@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Users,
   MapPin,
@@ -18,6 +19,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { TourOperatorsView } from './TourOperatorsView';
 import { useOperatorsBundle } from '@/hooks/useOperatorsData';
+import type { ReservationRecord } from '@/lib/operators';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', 'hsl(var(--border))'];
 
@@ -37,10 +39,14 @@ interface RealTimeReservation {
   personas: number;
   timestamp: Date;
   tipo: string;
+  horaSalida: string | null;
+  registradoPor: ReservationRecord['registradoPor'];
 }
 
 export const Dashboard = ({ onLogout }: DashboardProps) => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'operators'>('dashboard');
+  const [selectedReservation, setSelectedReservation] = useState<RealTimeReservation | null>(null);
+  const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
   const { data, isLoading, isError, error } = useOperatorsBundle();
 
   const operators = useMemo(() => data?.operators ?? [], [data?.operators]);
@@ -82,11 +88,25 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
         operador: reservation.operadorNombre,
         personas: reservation.personas,
         timestamp: new Date(reservation.timestamp),
-        tipo: reservation.tipo
+        tipo: reservation.tipo,
+        horaSalida: reservation.horaSalida,
+        registradoPor: reservation.registradoPor
       }))
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
       .slice(0, 6);
   }, [reservations]);
+
+  const handleReservationSelect = (reservation: RealTimeReservation) => {
+    setSelectedReservation(reservation);
+    setIsReservationDialogOpen(true);
+  };
+
+  const handleReservationDialogChange = (open: boolean) => {
+    setIsReservationDialogOpen(open);
+    if (!open) {
+      setSelectedReservation(null);
+    }
+  };
 
   const capacityVsDemand = useMemo(() => {
     return operators.map((operator) => ({
@@ -237,9 +257,12 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                     <p className="text-sm text-muted-foreground">Sin movimientos registrados hoy.</p>
                   ) : (
                     realTimeReservations.map((reserva) => (
-                      <div
+                      <button
                         key={reserva.id}
-                        className="group relative overflow-hidden rounded-xl border bg-card border-border transition-all duration-500 hover:shadow-ocean"
+                        type="button"
+                        onClick={() => handleReservationSelect(reserva)}
+                        className="group relative w-full overflow-hidden rounded-xl border bg-card border-border text-left transition-all duration-500 hover:shadow-ocean focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        aria-label={`Ver detalles de la reserva de ${reserva.operador}`}
                       >
                         <div className="p-4">
                           <div className="flex justify-between items-start">
@@ -259,8 +282,18 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                               </span>
                             </div>
                           </div>
+                          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                            <span>
+                              {reserva.registradoPor
+                                ? `Capturada por ${reserva.registradoPor.email}`
+                                : 'Captura sin usuario'}
+                            </span>
+                            <span className="font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                              Ver detalles
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>
@@ -417,6 +450,61 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
           </Card>
         </section>
       </main>
+      <Dialog open={isReservationDialogOpen} onOpenChange={handleReservationDialogChange}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Detalle de reserva</DialogTitle>
+            <DialogDescription>Consulta la información capturada para esta operación.</DialogDescription>
+          </DialogHeader>
+          {selectedReservation ? (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Tipo de servicio</p>
+                <p className="text-xl font-semibold text-foreground">{selectedReservation.tipo}</p>
+                <p className="text-sm text-muted-foreground">
+                  Operador asignado:
+                  <span className="ml-1 text-foreground font-medium">{selectedReservation.operador}</span>
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Personas</p>
+                  <p className="font-semibold text-foreground">{selectedReservation.personas}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Hora de salida</p>
+                  <p className="font-semibold text-foreground">
+                    {selectedReservation.horaSalida ?? 'Sin especificar'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Registrada por</p>
+                  <p className="font-semibold text-foreground">
+                    {selectedReservation.registradoPor
+                      ? selectedReservation.registradoPor.email
+                      : 'Captura sin usuario'}
+                  </p>
+                  {selectedReservation.registradoPor ? (
+                    <p className="text-xs text-muted-foreground">
+                      Rol: {selectedReservation.registradoPor.role === 'admin' ? 'Administración' : 'Ventas'}
+                    </p>
+                  ) : null}
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Capturada</p>
+                  <p className="font-semibold text-foreground">
+                    {Number.isNaN(selectedReservation.timestamp.getTime())
+                      ? 'Sin registro'
+                      : selectedReservation.timestamp.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Selecciona una reserva para ver el detalle.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

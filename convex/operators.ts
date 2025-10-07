@@ -132,6 +132,7 @@ export const getBundle = query({
 
     const clientesPorOperador = new Map<Id<'operators'>, number>();
     const operadorNombre = new Map<Id<'operators'>, string>();
+    const usuariosPorId = new Map<Id<'users'>, { email: string; role: 'admin' | 'seller' }>();
 
     operators.forEach((operator) => {
       clientesPorOperador.set(operator._id, 0);
@@ -143,21 +144,46 @@ export const getBundle = query({
       clientesPorOperador.set(reservation.operadorId, current + reservation.personas);
     });
 
+    const creatorIds = Array.from(
+      new Set(
+        reservations
+          .map((reservation) => reservation.creadoPorId)
+          .filter((value): value is Id<'users'> => Boolean(value))
+      )
+    );
+
+    if (creatorIds.length > 0) {
+      const creators = await Promise.all(creatorIds.map((userId) => ctx.db.get(userId)));
+      creators.forEach((user) => {
+        if (user) {
+          usuariosPorId.set(user._id, { email: user.email, role: user.role });
+        }
+      });
+    }
+
     const operatorList = operators
       .map((operator) => buildOperatorResponse(operator, clientesPorOperador.get(operator._id) ?? 0))
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     const reservationsToday = reservations
-      .map((reservation) => ({
-        id: reservation._id,
-        operadorId: reservation.operadorId,
-        operadorNombre: operadorNombre.get(reservation.operadorId) ?? 'Operador',
-        personas: reservation.personas,
-        tipo: reservation.tipo ?? 'Venta directa',
-        timestamp: reservation.timestamp,
-        horaSalida: reservation.horaSalida ?? null,
-      }))
+      .map((reservation) => {
+        const creator = reservation.creadoPorId ? usuariosPorId.get(reservation.creadoPorId) ?? null : null;
+
+        return {
+          id: reservation._id,
+          operadorId: reservation.operadorId,
+          operadorNombre: operadorNombre.get(reservation.operadorId) ?? 'Operador',
+          personas: reservation.personas,
+          tipo: reservation.tipo ?? 'Venta directa',
+          timestamp: reservation.timestamp,
+          horaSalida: reservation.horaSalida ?? null,
+          registradoPor: creator && reservation.creadoPorId
+            ? { id: reservation.creadoPorId, email: creator.email, role: creator.role }
+            : null,
+        };
+      })
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
 
     return { operators: operatorList, reservationsToday };
   },
@@ -229,6 +255,7 @@ export const createReservation = mutation({
     personas: v.number(),
     tipo: v.optional(v.string()),
     horaSalida: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const operator = await ctx.db.get(args.operadorId);
@@ -241,7 +268,23 @@ export const createReservation = mutation({
     }
 
     const now = new Date();
-    const dayKey = startOfDay(now.getTime());
+    const nowTimestamp = now.getTime();
+    const dayKey = startOfDay(nowTimestamp);
+
+    let creadoPorId: Id<'users'> | undefined;
+    if (args.sessionToken) {
+      const token = args.sessionToken.trim();
+      if (token) {
+        const session = await ctx.db
+          .query('sessions')
+          .withIndex('by_token', (q) => q.eq('token', token))
+          .unique();
+
+        if (session && (!session.expiresAt || session.expiresAt > nowTimestamp)) {
+          creadoPorId = session.userId;
+        }
+      }
+    }
 
     const reservationId = await ctx.db.insert('reservations', {
       operadorId: args.operadorId,
@@ -250,6 +293,7 @@ export const createReservation = mutation({
       timestamp: now.toISOString(),
       horaSalida: args.horaSalida,
       dayKey,
+      creadoPorId,
     });
 
     return { id: reservationId };

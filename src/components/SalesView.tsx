@@ -11,6 +11,7 @@ import { useCreateReservation, useOperatorsBundle } from '@/hooks/useOperatorsDa
 
 interface SalesViewProps {
   onBack: () => void;
+  sessionToken: string;
 }
 
 const calcularCarga = (clientes: number, capacidad: number) => {
@@ -20,7 +21,7 @@ const calcularCarga = (clientes: number, capacidad: number) => {
   return clientes / capacidad;
 };
 
-export const SalesView = ({ onBack }: SalesViewProps) => {
+export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
   const { data, isLoading, isError, error } = useOperatorsBundle();
   const createReservation = useCreateReservation();
   const { toast } = useToast();
@@ -121,6 +122,7 @@ export const SalesView = ({ onBack }: SalesViewProps) => {
         tourOperatorId: operadorAsignado.id,
         personas: cantidadPersonas,
         horaSalida: horarioSeleccionado || undefined,
+        sessionToken,
       });
 
       toast({
