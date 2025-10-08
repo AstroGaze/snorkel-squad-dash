@@ -394,7 +394,6 @@ export const LoginScreen = () => {
 
       <section className='relative z-10 hidden h-full flex-1 flex-col justify-between gap-12 overflow-hidden px-12 py-16 lg:flex'>
         <div className='pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(15,118,110,0.28),_transparent_70%)]' />
-        <div className='pointer-events-none absolute inset-y-16 right-8 -z-10 w-3/4 rounded-[48px] border border-white/10 bg-white/12 shadow-[0_40px_160px_-80px_rgba(14,116,144,0.7)] backdrop-blur-2xl' />
 
         <div className='relative max-w-xl space-y-4'>
           <Badge variant='secondary' className='border border-white/20 bg-white/25 text-slate-900 shadow-sm backdrop-blur'>
