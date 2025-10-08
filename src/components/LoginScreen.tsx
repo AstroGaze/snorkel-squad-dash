@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Waves, Fish, User, Lock, AlertTriangle, WifiOff, ShieldCheck, Clock4, Compass } from 'lucide-react';
+import { Waves, Fish, User, Lock, AlertTriangle, WifiOff, ShieldCheck, Clock4, Compass, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { signIn, signOut, signUp, type AppRole } from '@/lib/auth';
 
@@ -43,6 +43,8 @@ const roleLabel: Record<AppRole, string> = {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
+const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[A-Za-z])(?=.*\d).+$/;
+
 const featureItems = [
   {
     icon: ShieldCheck,
@@ -65,6 +67,7 @@ export const LoginScreen = () => {
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [userType, setUserType] = useState<AppRole>('seller');
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -143,8 +146,12 @@ export const LoginScreen = () => {
       return `Usa al menos ${MIN_PASSWORD_LENGTH} caracteres.`;
     }
 
+    if (mode === 'signup' && !PASSWORD_COMPLEXITY_REGEX.test(trimmed)) {
+      return 'Incluye al menos una letra y un numero.';
+    }
+
     return null;
-  }, [password, submitAttempted]);
+  }, [mode, password, submitAttempted]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -174,6 +181,11 @@ export const LoginScreen = () => {
 
     if (safePassword.length < MIN_PASSWORD_LENGTH) {
       setFormError(`La contrasena debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+      return;
+    }
+
+    if (mode === 'signup' && !PASSWORD_COMPLEXITY_REGEX.test(safePassword)) {
+      setFormError('La contrasena debe incluir al menos una letra y un numero.');
       return;
     }
 
@@ -233,7 +245,7 @@ export const LoginScreen = () => {
     : 'Usa el rol asignado en tu invitacion para evitar bloqueos.';
 
   return (
-    <div className='relative flex h-screen flex-col overflow-hidden bg-gradient-to-br from-[#061527] via-[#0e7490]/85 to-[#f472b6]/60 text-slate-100 lg:flex-row'>
+    <div className='relative flex h-screen flex-col overflow-x-hidden overflow-y-auto bg-gradient-to-br from-[#061527] via-[#0e7490]/85 to-[#f472b6]/60 text-slate-100 lg:flex-row'>
       <div className='pointer-events-none absolute inset-0'>
         <div className='absolute -left-24 top-8 h-72 w-72 rounded-full bg-primary/35 blur-3xl' />
         <div className='absolute bottom-[-120px] right-[-80px] h-96 w-96 rounded-full bg-secondary/30 blur-[200px]' />
@@ -328,7 +340,7 @@ export const LoginScreen = () => {
                 id='email'
                 type='email'
                 autoComplete='email'
-                placeholder='usuario@aquareservas.com'
+                placeholder='Correo corporativo (ej. ventas@aquareservas.com)'
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 className='h-12 rounded-xl border-white/10 bg-slate-900/40 text-slate-100 placeholder:text-slate-400 focus:border-primary focus:bg-slate-900/60 focus:text-white'
@@ -346,17 +358,28 @@ export const LoginScreen = () => {
               <label htmlFor='password' className='text-xs font-semibold uppercase tracking-wide text-slate-300'>
                 Contrasena
               </label>
-              <Input
-                id='password'
-                type='password'
-                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                placeholder='********'
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className='h-12 rounded-xl border-white/10 bg-slate-900/40 text-slate-100 placeholder:text-slate-400 focus:border-primary focus:bg-slate-900/60 focus:text-white'
-                disabled={isLoading}
-                required
-              />
+              <div className='relative'>
+                <Input
+                  id='password'
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  placeholder='Ingresa una contrasena segura'
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className='h-12 rounded-xl border-white/10 bg-slate-900/40 pr-12 text-slate-100 placeholder:text-slate-400 focus:border-primary focus:bg-slate-900/60 focus:text-white'
+                  disabled={isLoading}
+                  required
+                />
+                <button
+                  type='button'
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className='absolute inset-y-0 right-3 flex items-center text-slate-400 transition hover:text-slate-100'
+                  aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className='h-5 w-5' /> : <Eye className='h-5 w-5' />}
+                </button>
+              </div>
               {passwordError ? (
                 <p className='text-xs text-destructive'>{passwordError}</p>
               ) : (
@@ -375,7 +398,7 @@ export const LoginScreen = () => {
             </Button>
           </form>
 
-          <div className='space-y-2 text-center text-sm'>
+          <div className='space-y-2 text-center text-sm break-words'>
             <p className='text-slate-300'>
               {modeCopy.helper}{' '}
               <button
@@ -384,7 +407,7 @@ export const LoginScreen = () => {
                 onClick={toggleMode}
                 disabled={isLoading}
               >
-                {mode === 'signin' ? copy.signup.switchAction : copy.signin.switchAction}
+                {mode === 'signin' ? copy.signin.switchAction : copy.signup.switchAction}
               </button>
             </p>
             <p className='text-xs text-slate-400'>{helperHint}</p>
