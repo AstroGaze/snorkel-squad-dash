@@ -28,6 +28,7 @@ export interface TourOperator {
   horarios: string[];
   especialidad: string;
   clientesHoy: number;
+  clientesPrevios: number;
 }
 
 export interface ReservationCreator {

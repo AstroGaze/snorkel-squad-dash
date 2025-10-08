@@ -107,7 +107,7 @@ const buildOperatorResponse = (operator: {
   especialidad: string;
   createdAt: number;
   updatedAt?: number;
-}, clientesHoy: number) => ({
+}, clientesHoy: number, clientesPrevios: number) => ({
   id: operator._id,
   nombre: operator.nombre,
   contacto: operator.contacto,
@@ -117,36 +117,52 @@ const buildOperatorResponse = (operator: {
   horarios: operator.horarios,
   especialidad: operator.especialidad,
   clientesHoy,
+  clientesPrevios,
 });
 
 export const getBundle = query({
   args: {},
   handler: async (ctx) => {
-    const [operators, reservations] = await Promise.all([
+    const now = Date.now();
+    const todayStart = startOfDay(now);
+    const yesterdayStart = startOfDay(todayStart - 1);
+
+    const [operators, reservationsTodayDocs, reservationsYesterdayDocs] = await Promise.all([
       ctx.db.query('operators').collect(),
       ctx.db
         .query('reservations')
-        .withIndex('by_day', (q) => q.eq('dayKey', startOfDay(Date.now())))
+        .withIndex('by_day', (q) => q.eq('dayKey', todayStart))
+        .collect(),
+      ctx.db
+        .query('reservations')
+        .withIndex('by_day', (q) => q.eq('dayKey', yesterdayStart))
         .collect(),
     ]);
 
-    const clientesPorOperador = new Map<Id<'operators'>, number>();
+    const clientesHoyPorOperador = new Map<Id<'operators'>, number>();
+    const clientesPreviosPorOperador = new Map<Id<'operators'>, number>();
     const operadorNombre = new Map<Id<'operators'>, string>();
     const usuariosPorId = new Map<Id<'users'>, { email: string; role: 'admin' | 'seller' }>();
 
     operators.forEach((operator) => {
-      clientesPorOperador.set(operator._id, 0);
+      clientesHoyPorOperador.set(operator._id, 0);
+      clientesPreviosPorOperador.set(operator._id, 0);
       operadorNombre.set(operator._id, operator.nombre);
     });
 
-    reservations.forEach((reservation) => {
-      const current = clientesPorOperador.get(reservation.operadorId) ?? 0;
-      clientesPorOperador.set(reservation.operadorId, current + reservation.personas);
+    reservationsTodayDocs.forEach((reservation) => {
+      const current = clientesHoyPorOperador.get(reservation.operadorId) ?? 0;
+      clientesHoyPorOperador.set(reservation.operadorId, current + reservation.personas);
+    });
+
+    reservationsYesterdayDocs.forEach((reservation) => {
+      const current = clientesPreviosPorOperador.get(reservation.operadorId) ?? 0;
+      clientesPreviosPorOperador.set(reservation.operadorId, current + reservation.personas);
     });
 
     const creatorIds = Array.from(
       new Set(
-        reservations
+        reservationsTodayDocs
           .map((reservation) => reservation.creadoPorId)
           .filter((value): value is Id<'users'> => Boolean(value))
       )
@@ -162,10 +178,16 @@ export const getBundle = query({
     }
 
     const operatorList = operators
-      .map((operator) => buildOperatorResponse(operator, clientesPorOperador.get(operator._id) ?? 0))
+      .map((operator) =>
+        buildOperatorResponse(
+          operator,
+          clientesHoyPorOperador.get(operator._id) ?? 0,
+          clientesPreviosPorOperador.get(operator._id) ?? 0,
+        ),
+      )
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    const reservationsToday = reservations
+    const reservationsToday = reservationsTodayDocs
       .map((reservation) => {
         const creator = reservation.creadoPorId ? usuariosPorId.get(reservation.creadoPorId) ?? null : null;
 

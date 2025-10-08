@@ -48,10 +48,17 @@ export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
     }
 
     return operadoresElegibles.reduce((best, current) => {
-      const bestLoad = calcularCarga(best.clientesHoy, best.capacidadTotal);
-      const currentLoad = calcularCarga(current.clientesHoy, current.capacidadTotal);
+      const bestTotalClientes = best.clientesHoy + best.clientesPrevios;
+      const currentTotalClientes = current.clientesHoy + current.clientesPrevios;
+
+      const bestLoad = calcularCarga(bestTotalClientes, best.capacidadTotal);
+      const currentLoad = calcularCarga(currentTotalClientes, current.capacidadTotal);
 
       if (currentLoad === bestLoad) {
+        if (current.clientesPrevios !== best.clientesPrevios) {
+          return current.clientesPrevios < best.clientesPrevios ? current : best;
+        }
+
         const bestSlack = best.capacidadTotal - best.clientesHoy;
         const currentSlack = current.capacidadTotal - current.clientesHoy;
 
@@ -195,9 +202,16 @@ export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
                     disabled={isLoading || isSubmitting || !operadores.length || capacidadDisponible === 0}
                   />
                   {operadorAsignado ? (
-                    <p className="text-sm text-muted-foreground">
-                      Capacidad disponible con {operadorAsignado.nombre}: {capacidadDisponible}
-                    </p>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>
+                        Capacidad disponible con {operadorAsignado.nombre}: {capacidadDisponible}
+                      </p>
+                      {operadorAsignado.clientesPrevios > 0 && (
+                        <p className="text-xs">
+                          Arrastre de {operadorAsignado.clientesPrevios} pasajeros del dia anterior considerado en la distribucion.
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       Ajusta la cantidad para encontrar un operador con cupo.
