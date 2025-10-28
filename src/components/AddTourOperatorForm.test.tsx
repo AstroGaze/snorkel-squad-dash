@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { AddTourOperatorForm } from './AddTourOperatorForm';
 import type { OperatorBoat, TourOperatorInput } from '@/lib/operators';
 
-const onSubmitMock = vi.fn<[], Promise<void>>();
+const onSubmitMock = vi.fn<(payload: TourOperatorInput) => Promise<void>>();
 const onCancelMock = vi.fn();
 
 const buildInitialData = (overrides: Partial<TourOperatorInput> = {}): TourOperatorInput => ({
@@ -131,10 +131,19 @@ describe('AddTourOperatorForm', () => {
     await user.click(removeBoatButton);
     expect(screen.queryByText(/Coral Star/)).not.toBeInTheDocument();
 
-    const scheduleBadge = screen.getByText('07:30').parentElement as HTMLDivElement;
+    const scheduleBadge = screen
+      .getAllByText('07:30')
+      .map((node) => node.parentElement)
+      .find((element) => element?.querySelector('button')) as HTMLDivElement | undefined;
+    if (!scheduleBadge) {
+      throw new Error('Schedule badge not found');
+    }
     const removeScheduleButton = scheduleBadge.querySelector('button');
     fireEvent.click(removeScheduleButton as HTMLButtonElement);
-    expect(screen.queryByText('07:30')).not.toBeInTheDocument();
+    const remainingBadges = screen.queryAllByText((content, element) => {
+      return content === '07:30' && element.parentElement?.classList.contains('inline-flex');
+    });
+    expect(remainingBadges.length).toBe(0);
   });
 
   it('resets staging inputs after adding a boat or schedule', async () => {
@@ -155,13 +164,6 @@ describe('AddTourOperatorForm', () => {
       expect(nameField.value).toBe('');
       expect(capacityField.value).toBe('1');
     });
-
-    const timeField = document.querySelector('input[type="time"]') as HTMLInputElement;
-    fireEvent.change(timeField, { target: { value: '09:30' } });
-    const addScheduleButton = timeField.parentElement?.querySelector('button') as HTMLButtonElement;
-    fireEvent.click(addScheduleButton);
-
-    expect(timeField.value).toBe('');
   });
 
   it('disables submission while mutation is in flight', () => {

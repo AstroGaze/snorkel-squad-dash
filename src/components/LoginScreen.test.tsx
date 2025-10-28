@@ -58,7 +58,7 @@ describe('LoginScreen', () => {
     const modeContainer = screen.getByText('Modalidad actual').parentElement as HTMLElement;
     expect(within(modeContainer).getByText('Inicia sesion')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Crea una cuenta' }));
+    await user.click(screen.getAllByRole('button', { name: 'Crea una cuenta' })[0]);
 
     const updatedModeContainer = screen.getByText('Modalidad actual').parentElement as HTMLElement;
     expect(within(updatedModeContainer).getByText('Crear cuenta')).toBeInTheDocument();
@@ -120,7 +120,7 @@ describe('LoginScreen', () => {
 
     render(<LoginScreen />);
 
-    await user.click(screen.getByRole('button', { name: 'Crea una cuenta' }));
+    await user.click(screen.getAllByRole('button', { name: 'Crea una cuenta' })[0]);
 
     const adminRoleButton = screen.getByRole('button', { name: 'Administrador' }) as HTMLButtonElement;
     expect(adminRoleButton).toBeDisabled();

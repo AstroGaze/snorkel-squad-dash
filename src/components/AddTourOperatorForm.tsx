@@ -11,6 +11,14 @@ import type { OperatorBoat, TourOperatorInput } from '@/lib/operators';
 type TourOperatorFormData = TourOperatorInput;
 type BoatForm = OperatorBoat;
 
+const HORARIO_PRESETS = Array.from({ length: 24 * 2 }, (_, index) => {
+  const hours = Math.floor(index / 2)
+    .toString()
+    .padStart(2, '0');
+  const minutes = index % 2 === 0 ? '00' : '30';
+  return `${hours}:${minutes}`;
+});
+
 const defaultFormData: TourOperatorFormData = {
   nombre: '',
   contacto: {
@@ -47,12 +55,29 @@ export const AddTourOperatorForm = ({
   submitting = false,
   title
 }: AddTourOperatorFormProps) => {
-  const [formData, setFormData] = useState<TourOperatorFormData>(initialData ?? defaultFormData);
+  const [formData, setFormData] = useState<TourOperatorFormData>(() => {
+    if (!initialData) {
+      return defaultFormData;
+    }
+    return {
+      ...initialData,
+      horarios: [...new Set(initialData.horarios)].sort(),
+    };
+  });
   const [newBoat, setNewBoat] = useState<BoatForm>(defaultBoat);
-  const [newHorario, setNewHorario] = useState('');
+  const [horarioPreset, setHorarioPreset] = useState('');
+  const [customHorario, setCustomHorario] = useState('');
+  const [useCustomHorario, setUseCustomHorario] = useState(false);
 
   useEffect(() => {
-    setFormData(initialData ?? defaultFormData);
+    const base = initialData ?? defaultFormData;
+    setFormData({
+      ...base,
+      horarios: [...new Set(base.horarios)].sort(),
+    });
+    setHorarioPreset('');
+    setCustomHorario('');
+    setUseCustomHorario(false);
   }, [initialData]);
 
   const canSubmit = useMemo(() => {
@@ -100,16 +125,32 @@ export const AddTourOperatorForm = ({
     }));
   };
 
-  const addHorario = () => {
-    if (!newHorario) {
+  const appendHorario = (horario: string) => {
+    if (!horario) {
       return;
     }
 
     setFormData((prev) => ({
       ...prev,
-      horarios: [...new Set([...prev.horarios, newHorario])].sort()
+      horarios: [...new Set([...prev.horarios, horario])].sort()
     }));
-    setNewHorario('');
+  };
+
+  const handlePresetSelect = (value: string) => {
+    if (value === 'custom') {
+      setUseCustomHorario(true);
+      setHorarioPreset('');
+      return;
+    }
+
+    setUseCustomHorario(false);
+    setHorarioPreset('');
+    appendHorario(value);
+  };
+
+  const handleCustomHorarioAdd = () => {
+    appendHorario(customHorario);
+    setCustomHorario('');
   };
 
   const removeHorario = (horario: string) => {
@@ -336,14 +377,40 @@ export const AddTourOperatorForm = ({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-3">
-                <Input
-                  type="time"
-                  value={newHorario}
-                  onChange={(event) => setNewHorario(event.target.value)}
-                />
-                <Button type="button" onClick={addHorario} variant="ocean" size="sm">
-                  <Plus className="h-4 w-4" />
-                </Button>
+                <Select value={horarioPreset} onValueChange={handlePresetSelect} disabled={submitting}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Selecciona horario" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HORARIO_PRESETS.map((hora) => (
+                      <SelectItem key={hora} value={hora}>
+                        {hora}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">Agregar horario personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {useCustomHorario && (
+                  <div className="flex flex-1 items-center gap-3">
+                    <Input
+                      type="time"
+                      value={customHorario}
+                      onChange={(event) => setCustomHorario(event.target.value)}
+                      className="w-full sm:w-40"
+                      disabled={submitting}
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleCustomHorarioAdd}
+                      variant="ocean"
+                      size="sm"
+                      disabled={!customHorario}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {formData.horarios.length > 0 && (
