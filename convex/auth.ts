@@ -2,6 +2,7 @@
 import type { MutationCtx, QueryCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
 import { v } from 'convex/values';
+import { ensureSeedOperators } from './seeds';
 
 type AppRole = 'admin' | 'seller';
 
@@ -156,6 +157,7 @@ export const signUp = mutation({
   },
   handler: async (ctx, args) => {
     await ensureSeedUsers(ctx);
+    await ensureSeedOperators(ctx);
 
     const email = normaliseEmail(args.email);
 
@@ -197,6 +199,7 @@ export const signIn = mutation({
   },
   handler: async (ctx, args) => {
     await ensureSeedUsers(ctx);
+    await ensureSeedOperators(ctx);
 
     const email = normaliseEmail(args.email);
 

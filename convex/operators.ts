@@ -50,6 +50,8 @@ const operatorInputValidator = v.object({
   especialidad: v.string(),
 });
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const startOfDay = (timestamp: number) => {
   const date = new Date(timestamp);
   date.setHours(0, 0, 0, 0);
@@ -126,18 +128,18 @@ export const getBundle = query({
     const now = Date.now();
     const todayStart = startOfDay(now);
     const yesterdayStart = startOfDay(todayStart - 1);
+    const weekStart = startOfDay(todayStart - 6 * DAY_MS);
 
-    const [operators, reservationsTodayDocs, reservationsYesterdayDocs] = await Promise.all([
+    const [operators, reservationsThisWeek] = await Promise.all([
       ctx.db.query('operators').collect(),
       ctx.db
         .query('reservations')
-        .withIndex('by_day', (q) => q.eq('dayKey', todayStart))
-        .collect(),
-      ctx.db
-        .query('reservations')
-        .withIndex('by_day', (q) => q.eq('dayKey', yesterdayStart))
+        .withIndex('by_day', (q) => q.gte('dayKey', weekStart).lte('dayKey', todayStart))
         .collect(),
     ]);
+
+    const reservationsTodayDocs = reservationsThisWeek.filter((reservation) => reservation.dayKey === todayStart);
+    const reservationsYesterdayDocs = reservationsThisWeek.filter((reservation) => reservation.dayKey === yesterdayStart);
 
     const clientesHoyPorOperador = new Map<Id<'operators'>, number>();
     const clientesPreviosPorOperador = new Map<Id<'operators'>, number>();
@@ -158,6 +160,41 @@ export const getBundle = query({
     reservationsYesterdayDocs.forEach((reservation) => {
       const current = clientesPreviosPorOperador.get(reservation.operadorId) ?? 0;
       clientesPreviosPorOperador.set(reservation.operadorId, current + reservation.personas);
+    });
+
+    const weeklyTotals = new Map<
+      number,
+      {
+        totalClientes: number;
+        totalReservas: number;
+        breakdown: Map<Id<'operators'>, { clientes: number; reservas: number }>;
+      }
+    >();
+
+    const ensureWeeklyEntry = (dayKey: number) => {
+      let entry = weeklyTotals.get(dayKey);
+      if (!entry) {
+        entry = { totalClientes: 0, totalReservas: 0, breakdown: new Map() };
+        weeklyTotals.set(dayKey, entry);
+      }
+      return entry;
+    };
+
+    reservationsThisWeek.forEach((reservation) => {
+      const entry = ensureWeeklyEntry(reservation.dayKey);
+      entry.totalClientes += reservation.personas;
+      entry.totalReservas += 1;
+
+      const operatorStats = entry.breakdown.get(reservation.operadorId);
+      if (operatorStats) {
+        operatorStats.clientes += reservation.personas;
+        operatorStats.reservas += 1;
+      } else {
+        entry.breakdown.set(reservation.operadorId, {
+          clientes: reservation.personas,
+          reservas: 1,
+        });
+      }
     });
 
     const creatorIds = Array.from(
@@ -187,6 +224,30 @@ export const getBundle = query({
       )
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
+    const weeklyPerformance = Array.from({ length: 7 }, (_, index) => {
+      const dayKey = startOfDay(weekStart + index * DAY_MS);
+      const stats = weeklyTotals.get(dayKey);
+
+      const operadores = stats
+        ? Array.from(stats.breakdown.entries())
+            .map(([id, value]) => ({
+              id,
+              nombre: operadorNombre.get(id) ?? 'Operador',
+              clientes: value.clientes,
+              reservas: value.reservas,
+            }))
+            .sort((a, b) => b.clientes - a.clientes)
+        : [];
+
+      return {
+        dayKey,
+        isoDate: new Date(dayKey).toISOString(),
+        totalClientes: stats?.totalClientes ?? 0,
+        totalReservas: stats?.totalReservas ?? 0,
+        operadores,
+      };
+    });
+
     const reservationsToday = reservationsTodayDocs
       .map((reservation) => {
         const creator = reservation.creadoPorId ? usuariosPorId.get(reservation.creadoPorId) ?? null : null;
@@ -207,7 +268,7 @@ export const getBundle = query({
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
 
-    return { operators: operatorList, reservationsToday };
+    return { operators: operatorList, reservationsToday, weeklyPerformance };
   },
 });
 

@@ -48,9 +48,25 @@ export interface ReservationRecord {
   registradoPor: ReservationCreator | null;
 }
 
+export interface WeeklyOperatorBreakdown {
+  id: TourOperatorId;
+  nombre: string;
+  clientes: number;
+  reservas: number;
+}
+
+export interface WeeklyPerformancePoint {
+  dayKey: number;
+  isoDate: string;
+  totalClientes: number;
+  totalReservas: number;
+  operadores: WeeklyOperatorBreakdown[];
+}
+
 export interface OperatorsBundle {
   operators: TourOperator[];
   reservationsToday: ReservationRecord[];
+  weeklyPerformance: WeeklyPerformancePoint[];
 }
 
 export interface TourOperatorInput {

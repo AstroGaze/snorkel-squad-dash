@@ -41,6 +41,8 @@ const MockContainer = ({ children }: { children?: React.ReactNode }) => (
     XAxis: MockContainer,
     YAxis: MockContainer,
     CartesianGrid: MockContainer,
+    LineChart: MockContainer,
+    Line: MockContainer,
   };
 });
 
@@ -115,6 +117,21 @@ const buildBundle = (overrides?: Partial<OperatorsBundle>): OperatorsBundle => (
       horaSalida: '15:00',
     }),
   ],
+  weeklyPerformance:
+    overrides?.weeklyPerformance ??
+    Array.from({ length: 7 }, (_, index) => {
+      const base = new Date('2025-02-18T00:00:00Z').getTime();
+      return {
+        dayKey: base + index * 24 * 60 * 60 * 1000,
+        isoDate: new Date(base + index * 24 * 60 * 60 * 1000).toISOString(),
+        totalClientes: 10 + index,
+        totalReservas: 2 + (index % 3),
+        operadores: [
+          { id: 'op-1' as TourOperator['id'], nombre: 'Blue Reef Adventures', clientes: 6 + index, reservas: 1 + (index % 2) },
+          { id: 'op-2' as TourOperator['id'], nombre: 'Coral Wave Expeditions', clientes: 4, reservas: 1 },
+        ],
+      };
+    }),
 });
 
 const mockHookReturn = (bundleOverrides?: Partial<OperatorsBundle>, extras?: Partial<ReturnType<typeof useOperatorsBundleMock>>) => {

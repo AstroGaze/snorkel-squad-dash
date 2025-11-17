@@ -16,12 +16,31 @@ import {
   BarChart3,
   Clock
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
 import { TourOperatorsView } from './TourOperatorsView';
 import { useOperatorsBundle } from '@/hooks/useOperatorsData';
 import type { ReservationRecord } from '@/lib/operators';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', 'hsl(var(--border))'];
+const DISTRIBUTION_COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--secondary))',
+  'hsl(var(--accent))',
+  'hsl(var(--muted))',
+  'hsl(var(--destructive))',
+];
 
 interface DashboardProps {
   onLogout: () => void;
@@ -43,6 +62,20 @@ interface RealTimeReservation {
   registradoPor: ReservationRecord['registradoPor'];
 }
 
+type WeeklyDistributionSeries = {
+  id: string;
+  key: string;
+  nombre: string;
+  color: string;
+};
+
+type WeeklyDistributionRanking = {
+  id: string;
+  nombre: string;
+  clientes: number;
+  reservas: number;
+};
+
 export const Dashboard = ({ onLogout }: DashboardProps) => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'operators'>('dashboard');
   const [selectedReservation, setSelectedReservation] = useState<RealTimeReservation | null>(null);
@@ -51,6 +84,100 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
 
   const operators = useMemo(() => data?.operators ?? [], [data?.operators]);
   const reservations = useMemo(() => data?.reservationsToday ?? [], [data?.reservationsToday]);
+  const weeklyPerformance = useMemo(() => data?.weeklyPerformance ?? [], [data?.weeklyPerformance]);
+
+  const weeklyDistribution = useMemo(() => {
+    if (!weeklyPerformance.length) {
+      return {
+        data: [] as Array<Record<string, number | string>>,
+        series: [] as WeeklyDistributionSeries[],
+        ranking: [] as WeeklyDistributionRanking[],
+      };
+    }
+
+    const totals = new Map<string, WeeklyDistributionRanking>();
+    weeklyPerformance.forEach((point) => {
+      point.operadores.forEach((operator) => {
+        const id = String(operator.id);
+        const existing = totals.get(id);
+        if (existing) {
+          existing.clientes += operator.clientes;
+          existing.reservas += operator.reservas;
+        } else {
+          totals.set(id, {
+            id,
+            nombre: operator.nombre,
+            clientes: operator.clientes,
+            reservas: operator.reservas,
+          });
+        }
+      });
+    });
+
+    const ranking = Array.from(totals.values()).sort((a, b) => b.clientes - a.clientes);
+    const topOperators = ranking.slice(0, 4);
+    const series: WeeklyDistributionSeries[] = topOperators.map((operator, index) => ({
+      id: operator.id,
+      key: `operator_${index}`,
+      nombre: operator.nombre,
+      color: DISTRIBUTION_COLORS[index % DISTRIBUTION_COLORS.length],
+    }));
+    const seriesKeyById = new Map(topOperators.map((operator, index) => [operator.id, `operator_${index}`]));
+
+    const data = weeklyPerformance.map((point) => {
+      const date = new Date(point.dayKey);
+      const label = date.toLocaleDateString('es-MX', { weekday: 'short' });
+      const row: Record<string, number | string> = { dayKey: point.dayKey, label };
+      series.forEach((definition) => {
+        row[definition.key] = 0;
+      });
+      let otros = 0;
+      point.operadores.forEach((operator) => {
+        const id = String(operator.id);
+        const key = seriesKeyById.get(id);
+        if (key) {
+          row[key] = (row[key] as number) + operator.clientes;
+        } else {
+          otros += operator.clientes;
+        }
+      });
+      if (ranking.length > series.length) {
+        row.otros = otros;
+      }
+      return row;
+    });
+
+    const finalSeries =
+      ranking.length > series.length
+        ? [
+            ...series,
+            {
+              id: 'others',
+              key: 'otros',
+              nombre: 'Otros operadores',
+              color: DISTRIBUTION_COLORS[series.length % DISTRIBUTION_COLORS.length],
+            },
+          ]
+        : series;
+
+    return { data, series: finalSeries, ranking };
+  }, [weeklyPerformance]);
+
+  const weeklySummary = useMemo(() => {
+    const totalClientes = weeklyPerformance.reduce((acc, point) => acc + point.totalClientes, 0);
+    const totalReservas = weeklyPerformance.reduce((acc, point) => acc + point.totalReservas, 0);
+    const topOperator = weeklyDistribution.ranking[0] ?? null;
+    const activeOperators = weeklyDistribution.ranking.length;
+    const topOperatorShare =
+      topOperator && totalClientes > 0 ? Math.round((topOperator.clientes / totalClientes) * 100) : null;
+    return {
+      totalClientes,
+      totalReservas,
+      topOperator,
+      activeOperators,
+      topOperatorShare,
+    };
+  }, [weeklyDistribution, weeklyPerformance]);
 
   const totalClientes = useMemo(() => operators.reduce((acc, operator) => acc + operator.clientesHoy, 0), [operators]);
   const reservasHoy = reservations.length;
@@ -196,6 +323,62 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
             <CardContent>
               <div className="text-3xl font-bold text-accent-foreground">{isLoading ? '...' : upcomingDepartures.length}</div>
               <p className="text-sm text-muted-foreground">Programadas para hoy</p>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid grid-cols-1 gap-6">
+          <Card className="shadow-depth">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-secondary" />
+                <span>Distribucion semanal de clientes</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {weeklyDistribution.data.length === 0 ? (
+                <p className="text-muted-foreground">Agrega reservas para analizar la semana.</p>
+              ) : (
+                <>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={weeklyDistribution.data}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="label" stroke="currentColor" className="text-xs fill-muted-foreground" />
+                        <YAxis stroke="currentColor" className="text-xs fill-muted-foreground" />
+                        <Tooltip />
+                        <Legend />
+                        {weeklyDistribution.series.map((series) => (
+                          <Bar key={series.id} dataKey={series.key} name={series.nombre} stackId="clientes" fill={series.color} />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                    <div className="p-3 rounded-lg border border-border bg-gradient-surface">
+                      <p className="text-muted-foreground">Personas totales</p>
+                      <p className="text-xl font-bold text-foreground">{weeklySummary.totalClientes}</p>
+                      <p className="text-xs text-muted-foreground">Reservas: {weeklySummary.totalReservas}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border border-border bg-gradient-surface">
+                      <p className="text-muted-foreground">Operadores activos</p>
+                      <p className="text-xl font-bold text-foreground">{weeklySummary.activeOperators}</p>
+                      <p className="text-xs text-muted-foreground">Con atencion durante la semana</p>
+                    </div>
+                    <div className="p-3 rounded-lg border border-border bg-gradient-surface">
+                      <p className="text-muted-foreground">Principal operador</p>
+                      <p className="text-sm text-foreground">
+                        {weeklySummary.topOperator ? weeklySummary.topOperator.nombre : 'Sin datos'}
+                      </p>
+                      {weeklySummary.topOperator && weeklySummary.topOperatorShare !== null ? (
+                        <p className="text-xs text-muted-foreground">
+                          {weeklySummary.topOperator.clientes} personas ({weeklySummary.topOperatorShare}%)
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </section>

@@ -16,6 +16,7 @@ import type {
 import type * as auth from "../auth.js";
 import type * as operators from "../operators.js";
 import type * as placeholder from "../placeholder.js";
+import type * as seeds from "../seeds.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   operators: typeof operators;
   placeholder: typeof placeholder;
+  seeds: typeof seeds;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

@@ -85,7 +85,7 @@ const setOperatorsState = ({
   error?: Error | null;
 }) => {
   useOperatorsBundleMock.mockReturnValue({
-    data: { operators, reservationsToday: [] },
+    data: { operators, reservationsToday: [], weeklyPerformance: [] },
     isLoading,
     isError,
     error,

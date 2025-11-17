@@ -38,7 +38,7 @@ const buildOperator = (overrides: Partial<TourOperator>): TourOperator => ({
 
 const mockOperators = (operators: TourOperator[], extras?: Partial<ReturnType<typeof useOperatorsBundleMock>>) => {
   useOperatorsBundleMock.mockReturnValue({
-    data: { operators, reservationsToday: [] },
+    data: { operators, reservationsToday: [], weeklyPerformance: [] },
     isLoading: false,
     isError: false,
     error: null as Error | null,
