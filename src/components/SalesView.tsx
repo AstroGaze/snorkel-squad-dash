@@ -142,18 +142,18 @@ export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-surface">
-      <header className="bg-card shadow-ocean border-b border-border">
+      <header className="bg-card shadow-ocean border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
-              <Button variant="ghost" onClick={onBack} className="mr-2">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver
+              <Button variant="ghost" size="sm" onClick={onBack} className="mr-1 md:mr-2 px-2 md:px-4">
+                <ArrowLeft className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Volver</span>
               </Button>
-              <div className="p-2 rounded-lg bg-gradient-ocean">
-                <Users className="h-6 w-6 text-primary-foreground" />
+              <div className="p-1.5 md:p-2 rounded-lg bg-gradient-ocean">
+                <Users className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
               </div>
-              <h1 className="text-xl font-bold text-foreground">Panel de Ventas</h1>
+              <h1 className="text-lg md:text-xl font-bold text-foreground">Panel de Ventas</h1>
             </div>
           </div>
         </div>
@@ -194,7 +194,7 @@ export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
                       setCantidadPersonas(capacidadDisponible !== null ? Math.min(safeValue, capacidadDisponible) : safeValue);
                     }}
                     placeholder="Ingresa el numero de personas"
-                    className="text-lg font-medium"
+                    className="text-lg font-medium h-12"
                     disabled={isLoading || isSubmitting || !operadores.length || capacidadDisponible === 0}
                   />
                   {operadorAsignado ? (
@@ -247,7 +247,7 @@ export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
                         onValueChange={setHorarioSeleccionado}
                         disabled={isLoading || isSubmitting}
                       >
-                        <SelectTrigger id="horario">
+                        <SelectTrigger id="horario" className="h-12">
                           <SelectValue placeholder="Selecciona un horario" />
                         </SelectTrigger>
                         <SelectContent>
@@ -268,7 +268,7 @@ export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
 
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full h-12 text-lg"
                   variant="ocean"
                   disabled={
                     isSubmitting ||

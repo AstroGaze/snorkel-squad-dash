@@ -279,28 +279,30 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-surface">
-      <header className="bg-card shadow-ocean border-b border-border">
+      <header className="bg-card shadow-ocean border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col md:flex-row justify-between items-center py-4 md:h-16 md:py-0 gap-4 md:gap-0">
+            <div className="flex items-center space-x-3 w-full md:w-auto justify-center md:justify-start">
               <div className="p-2 rounded-lg bg-gradient-ocean">
                 <Waves className="h-6 w-6 text-primary-foreground" />
               </div>
-              <h1 className="text-xl font-bold text-foreground">AquaReservas Dashboard</h1>
+              <h1 className="text-xl font-bold text-foreground">AquaReservas</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 justify-center w-full md:w-auto">
               <Button 
                 variant="outline" 
+                size="sm"
                 onClick={handleSimulateDay}
                 disabled={isSimulating}
+                className="flex-1 md:flex-none"
               >
                 {isSimulating ? 'Simulando...' : 'Simular Día'}
               </Button>
-              <Button variant="outline" onClick={() => setCurrentView('operators')}>
-                Gestionar operadores
+              <Button variant="outline" size="sm" onClick={() => setCurrentView('operators')} className="flex-1 md:flex-none">
+                Operadores
               </Button>
-              <Button variant="outline" onClick={onLogout}>
-                Cerrar sesión
+              <Button variant="outline" size="sm" onClick={onLogout} className="flex-1 md:flex-none">
+                Salir
               </Button>
             </div>
           </div>
@@ -318,7 +320,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
           </Card>
         )}
 
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           <Card className="shadow-ocean">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Clientes del día</CardTitle>
@@ -377,7 +379,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                 <p className="text-muted-foreground">Agrega reservas para analizar la semana.</p>
               ) : (
                 <>
-                  <div className="h-64">
+                  <div className="h-64 sm:h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={weeklyDistribution.data}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -547,7 +549,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                 <span>Capacidad vs demanda</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-72 sm:h-96">
               {capacityVsDemand.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   Sin datos para graficar
@@ -577,7 +579,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                 <span>Participación por operador</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-64 sm:h-80">
               {distribution.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   Sin datos suficientes
