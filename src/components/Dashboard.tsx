@@ -1,4 +1,7 @@
 ﻿import { useMemo, useState } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,7 +83,31 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'operators'>('dashboard');
   const [selectedReservation, setSelectedReservation] = useState<RealTimeReservation | null>(null);
   const [isReservationDialogOpen, setIsReservationDialogOpen] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
   const { data, isLoading, isError, error } = useOperatorsBundle();
+  const generateRandomReservation = useMutation(api.demo.generateRandomReservation);
+
+  const handleSimulateDay = async () => {
+    if (isSimulating) return;
+    
+    setIsSimulating(true);
+    toast.info('Iniciando simulación de día ocupado...');
+    
+    try {
+      // Generate 30 random reservations with delay
+      for (let i = 0; i < 30; i++) {
+        await generateRandomReservation({});
+        // Wait 800ms between reservations to visualize the flow
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+      toast.success('Simulación completada.');
+    } catch (error) {
+      toast.error('Error durante la simulación.');
+      console.error(error);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
   const operators = useMemo(() => data?.operators ?? [], [data?.operators]);
   const reservations = useMemo(() => data?.reservationsToday ?? [], [data?.reservationsToday]);
@@ -184,12 +211,15 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
 
   const distribution = useMemo(() => {
     return operators.map((operator) => {
-      const porcentaje = totalClientes > 0 ? Math.round((operator.clientesHoy / totalClientes) * 100) : 0;
+      const marketShare = totalClientes > 0 ? Math.round((operator.clientesHoy / totalClientes) * 100) : 0;
+      const loadFactor = operator.capacidadTotal > 0 ? Math.round((operator.clientesHoy / operator.capacidadTotal) * 100) : 0;
+      
       return {
         id: operator.id,
         nombre: operator.nombre,
         clientes: operator.clientesHoy,
-        porcentaje,
+        marketShare,
+        loadFactor,
         capacidadTotal: operator.capacidadTotal,
         personal: operator.personal
       };
@@ -259,6 +289,13 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
               <h1 className="text-xl font-bold text-foreground">AquaReservas Dashboard</h1>
             </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleSimulateDay}
+                disabled={isSimulating}
+              >
+                {isSimulating ? 'Simulando...' : 'Simular Día'}
+              </Button>
               <Button variant="outline" onClick={() => setCurrentView('operators')}>
                 Gestionar operadores
               </Button>
@@ -399,22 +436,41 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
               {distribution.length === 0 ? (
                 <p className="text-muted-foreground">Aún no hay clientes registrados para hoy.</p>
               ) : (
-                <div className="space-y-4 mb-6">
+                <div className="space-y-6 mb-6">
                   <h4 className="font-semibold text-foreground mb-3">Distribución por tour operador</h4>
                   {distribution.map((operador) => (
-                    <div key={operador.id} className="space-y-2">
+                    <div key={operador.id} className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-foreground">{operador.nombre}</span>
-                        <div className="flex items-center space-x-4">
-                          <span className="text-sm text-muted-foreground">{operador.porcentaje}%</span>
-                          <span className="text-lg font-bold text-primary">{operador.clientes} personas</span>
+                        <span className="text-lg font-bold text-primary">{operador.clientes} personas</span>
+                      </div>
+                      
+                      {/* Market Share Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Cuota de mercado</span>
+                          <span>{operador.marketShare}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full bg-gradient-ocean transition-all duration-1000"
+                            style={{ width: `${Math.min(operador.marketShare, 100)}%` }}
+                          />
                         </div>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-3">
-                        <div
-                          className="h-3 rounded-full bg-gradient-ocean transition-all duration-1000"
-                          style={{ width: `${Math.min(operador.porcentaje, 100)}%` }}
-                        />
+
+                      {/* Load Factor Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Ocupación (Carga)</span>
+                          <span>{operador.loadFactor}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full bg-secondary transition-all duration-1000"
+                            style={{ width: `${Math.min(operador.loadFactor, 100)}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -534,7 +590,12 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
                         <Cell key={`cell-${entry.id}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip 
+                      formatter={(value: number, name: string, props: any) => {
+                        const item = props.payload;
+                        return [`${value} pax (${item.marketShare}%)`, name];
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               )}

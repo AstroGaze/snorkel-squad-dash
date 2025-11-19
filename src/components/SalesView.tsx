@@ -48,28 +48,24 @@ export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
     }
 
     return operadoresElegibles.reduce((best, current) => {
-      const bestTotalClientes = best.clientesHoy + best.clientesPrevios;
-      const currentTotalClientes = current.clientesHoy + current.clientesPrevios;
+      // 1. Primary: Least Load % (based ONLY on today's clients)
+      const bestLoad = calcularCarga(best.clientesHoy, best.capacidadTotal);
+      const currentLoad = calcularCarga(current.clientesHoy, current.capacidadTotal);
 
-      const bestLoad = calcularCarga(bestTotalClientes, best.capacidadTotal);
-      const currentLoad = calcularCarga(currentTotalClientes, current.capacidadTotal);
+      if (currentLoad !== bestLoad) {
+        return currentLoad < bestLoad ? current : best;
+      }
 
-      if (currentLoad === bestLoad) {
-        if (current.clientesPrevios !== best.clientesPrevios) {
-          return current.clientesPrevios < best.clientesPrevios ? current : best;
-        }
+      // 2. Secondary: Most Slack (Absolute seats available)
+      const bestSlack = best.capacidadTotal - best.clientesHoy;
+      const currentSlack = current.capacidadTotal - current.clientesHoy;
 
-        const bestSlack = best.capacidadTotal - best.clientesHoy;
-        const currentSlack = current.capacidadTotal - current.clientesHoy;
-
-        if (currentSlack === bestSlack) {
-          return current.nombre.localeCompare(best.nombre) < 0 ? current : best;
-        }
-
+      if (currentSlack !== bestSlack) {
         return currentSlack > bestSlack ? current : best;
       }
 
-      return currentLoad < bestLoad ? current : best;
+      // 3. Tertiary: Alphabetical (Deterministic fallback)
+      return current.nombre.localeCompare(best.nombre) < 0 ? current : best;
     }, operadoresElegibles[0]);
   }, [operadoresElegibles]);
 
@@ -208,7 +204,7 @@ export const SalesView = ({ onBack, sessionToken }: SalesViewProps) => {
                       </p>
                       {operadorAsignado.clientesPrevios > 0 && (
                         <p className="text-xs">
-                          Arrastre de {operadorAsignado.clientesPrevios} pasajeros del dia anterior considerado en la distribucion.
+                          Arrastre de {operadorAsignado.clientesPrevios} pasajeros del dia anterior.
                         </p>
                       )}
                     </div>

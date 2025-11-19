@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as auth from "../auth.js";
+import type * as demo from "../demo.js";
 import type * as operators from "../operators.js";
 import type * as placeholder from "../placeholder.js";
 import type * as seeds from "../seeds.js";
@@ -28,6 +29,7 @@ import type * as seeds from "../seeds.js";
  */
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  demo: typeof demo;
   operators: typeof operators;
   placeholder: typeof placeholder;
   seeds: typeof seeds;
