@@ -94,11 +94,11 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
     toast.info('Iniciando simulación de día ocupado...');
     
     try {
-      // Generate 30 random reservations with delay
-      for (let i = 0; i < 30; i++) {
+      // Generate 40 random reservations with delay
+      for (let i = 0; i < 40; i++) {
         await generateRandomReservation({});
-        // Wait 800ms between reservations to visualize the flow
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Wait 1200ms between reservations to visualize the flow
+        await new Promise(resolve => setTimeout(resolve, 1200));
       }
       toast.success('Simulación completada.');
     } catch (error) {

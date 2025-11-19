@@ -39,13 +39,12 @@ export const generateRandomReservation = mutation({
       return { ...op, clientesHoy, load, slack };
     });
 
-    // Random group size 1-8 (weighted slightly towards 2-4)
+    // Random group size 1-6 (weighted slightly towards 2-4)
     const r = Math.random();
     let personas: number;
-    if (r < 0.1) personas = 1;
-    else if (r < 0.6) personas = Math.floor(Math.random() * 3) + 2; // 2-4
-    else if (r < 0.9) personas = Math.floor(Math.random() * 2) + 5; // 5-6
-    else personas = Math.floor(Math.random() * 2) + 7; // 7-8
+    if (r < 0.15) personas = 1;
+    else if (r < 0.75) personas = Math.floor(Math.random() * 3) + 2; // 2-4
+    else personas = Math.floor(Math.random() * 2) + 5; // 5-6
 
     // Filter eligible operators (must have enough capacity)
     const eligibleOperators = operatorStats.filter(op => op.slack >= personas);
